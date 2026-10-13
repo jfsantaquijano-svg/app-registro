@@ -1,0 +1,14 @@
+node_modules/
+test/capturas/
+test/descargas/
+test-results/
+playwright-report/
+*.log
+# Nunca datos personales en este repositorio: archivos de arranque, copias exportadas y carpetas de datos
+arranque*.json
+!test/arranque-prueba.json
+arranque*.txt
+copia-*.txt
+antes-de-restaurar-*.txt
+datos/
+*.privado.*

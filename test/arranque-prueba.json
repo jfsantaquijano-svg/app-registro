@@ -1,0 +1,1441 @@
+{
+ "formato": "app-registro",
+ "version": 1,
+ "creado": "2030-01-01T12:00:00+00:00",
+ "tipo": "arranque",
+ "ajustes": {
+  "zonas": {
+   "zona1": {
+    "nombre": "Zona A",
+    "sesiones": [
+     "a"
+    ],
+    "preguntaManana": "¿Cómo amaneció la zona A?",
+    "preguntaDormir": "¿Dormiste de ese lado?",
+    "dormirAnula": true,
+    "siEmpeora": "recorrido",
+    "consejoSiPasaUmbral": "Consejo de ejemplo: acorta el recorrido.",
+    "donde": "Dónde de ejemplo: arriba y por dentro."
+   },
+   "zona2": {
+    "nombre": "Zona B",
+    "sesiones": [
+     "b"
+    ],
+    "preguntaManana": "¿Cómo amaneció la zona B?",
+    "preguntaNoche": "¿Te molestó la zona B hoy?",
+    "momentosEvento": [
+     "evento",
+     "noche"
+    ]
+   }
+  },
+  "umbralDolor": 4,
+  "alarmas": [
+   "Alarma de ejemplo 1",
+   "Alarma de ejemplo 2"
+  ],
+  "avisoAlarma": "Aviso de ejemplo: consulta sin esperar.",
+  "cita": {
+   "texto": "Recordatorio de ejemplo: pendiente",
+   "hecha": false
+  },
+  "gimnasios": [
+   "Gimnasio Norte",
+   "Gimnasio Sur"
+  ],
+  "gimnasioPorDefecto": "Gimnasio Norte",
+  "comidaLibre": {
+   "desde": "2030-01-05",
+   "cadaDias": 10
+  },
+  "fechas": [
+   {
+    "fecha": "2030-02-03",
+    "titulo": "Medidas de ejemplo",
+    "repetir": "mensual"
+   },
+   {
+    "fecha": "2030-01-12",
+    "titulo": "Copia semanal de ejemplo",
+    "repetir": "semanal",
+    "soloCalendario": true
+   },
+   {
+    "fecha": "2030-02-15",
+    "titulo": "Revisión de ejemplo",
+    "repetir": "ninguna"
+   }
+  ],
+  "omega3": {
+   "nombre": "Suplemento diario de ejemplo",
+   "kcal": 20,
+   "p": 0,
+   "g": 2,
+   "c": 0,
+   "activo": true
+  },
+  "diasPeso": [
+   2,
+   4,
+   6
+  ],
+  "pesoNoResaltarTrasViajeDias": 2,
+  "cierre": {
+   "nuncaSolos": [
+    "caldo"
+   ],
+   "preferir": [
+    "arepa"
+   ],
+   "porcionesLacteo": [
+    125,
+    150
+   ]
+  },
+  "textos": {
+   "cita": "Detalle de ejemplo del recordatorio.",
+   "citaRecorrido": "Texto de ejemplo: revisa el recorrido.",
+   "eventoZona1": "Anota lo que pasó.",
+   "eventoZona1NoSubir": "Texto de ejemplo: no sube por el registro de la zona A",
+   "unaPierna": "Texto de ejemplo para los ejercicios a un lado.",
+   "porEncontrar": "Texto de ejemplo del peso por encontrar.",
+   "ayerDiaAlto": "Ayer fue día alto (texto de ejemplo).",
+   "unaSesionPorDia": "Texto de ejemplo: una sola sesión por día."
+  }
+ },
+ "metas": {
+  "tipos": {
+   "entreno": {
+    "nombre": "Entreno",
+    "kcal": 2000,
+    "p": 150,
+    "g": 60,
+    "c": 215,
+    "pMin": 140,
+    "pMax": 160,
+    "gMin": 55,
+    "gMax": 65
+   },
+   "descanso": {
+    "nombre": "Descanso",
+    "kcal": 1900,
+    "p": 150,
+    "g": 58,
+    "c": 194,
+    "pMin": 140,
+    "pMax": 160,
+    "gMin": 52,
+    "gMax": 62
+   },
+   "viaje": {
+    "nombre": "Viaje",
+    "kcal": 2500,
+    "pMin": 130,
+    "soloKcalYProteina": true,
+    "cuentaDiaAlto": false,
+    "promedioLimpio": false
+   },
+   "pausa": {
+    "nombre": "Pausa de ejemplo",
+    "kcal": 2400,
+    "p": 150,
+    "g": 75,
+    "c": 280,
+    "pMin": 140,
+    "pMax": 160,
+    "gMin": 60,
+    "gMax": 85,
+    "activo": false,
+    "diaModeloDe": "descanso"
+   }
+  },
+  "diaAltoKcal": 150,
+  "reglaDeOroP": 150,
+  "grasaMinima": 50,
+  "toleranciaKcal": 30,
+  "recargos": {
+   "salteado": 0.25,
+   "plancha": 0.15,
+   "medido": 0.05
+  },
+  "peorCasoAceite": {
+   "arroz": 4,
+   "frijol": 6,
+   "polloMarinado": 2
+  }
+ },
+ "alimentos": [
+  {
+   "id": "muslo-pavo",
+   "nombre": "Muslo de pavo",
+   "marca": "",
+   "categoria": "proteina",
+   "base": "100g",
+   "unidadNombre": null,
+   "gramosUnidad": null,
+   "kcal": 140,
+   "p": 20,
+   "g": 6,
+   "c": 0,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": {
+    "tipo": "carne",
+    "estado": "crudo"
+   },
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": true,
+   "libre": false,
+   "origen": "plan",
+   "notas": "Valores en crudo.",
+   "genero": "m"
+  },
+  {
+   "id": "lomo-cerdo",
+   "nombre": "Lomo de cerdo",
+   "marca": "",
+   "categoria": "proteina",
+   "base": "100g",
+   "unidadNombre": null,
+   "gramosUnidad": null,
+   "kcal": 143,
+   "p": 21,
+   "g": 6,
+   "c": 0,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": {
+    "tipo": "carne",
+    "estado": "crudo"
+   },
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": "",
+   "genero": "m"
+  },
+  {
+   "id": "quinua",
+   "nombre": "Quinua",
+   "marca": "",
+   "categoria": "carbo",
+   "base": "100g",
+   "unidadNombre": null,
+   "gramosUnidad": null,
+   "kcal": 368,
+   "p": 14,
+   "g": 6,
+   "c": 64,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": {
+    "tipo": "arroz",
+    "estado": "crudo"
+   },
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": "",
+   "genero": "f"
+  },
+  {
+   "id": "huevo",
+   "nombre": "Huevo",
+   "marca": "",
+   "categoria": "proteina",
+   "base": "unidad",
+   "unidadNombre": "huevo",
+   "gramosUnidad": 50,
+   "kcal": 72,
+   "p": 6.3,
+   "g": 4.8,
+   "c": 0.4,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "arepa",
+   "nombre": "Arepa de maíz",
+   "marca": "",
+   "categoria": "carbo",
+   "base": "unidad",
+   "unidadNombre": "arepa",
+   "gramosUnidad": 60,
+   "kcal": 120,
+   "p": 3,
+   "g": 1,
+   "c": 25,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": true,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "kumis",
+   "nombre": "Kumis descremado",
+   "marca": "",
+   "categoria": "lacteo",
+   "base": "100g",
+   "unidadNombre": null,
+   "gramosUnidad": null,
+   "kcal": 60,
+   "p": 8,
+   "g": 0.4,
+   "c": 6,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "cuajada",
+   "nombre": "Cuajada en tajada",
+   "marca": "",
+   "categoria": "lacteo",
+   "base": "unidad",
+   "unidadNombre": "tajada",
+   "gramosUnidad": 20,
+   "kcal": 40,
+   "p": 4.5,
+   "g": 2,
+   "c": 1,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "mandarina",
+   "nombre": "Mandarina",
+   "marca": "",
+   "categoria": "fruta",
+   "base": "100g",
+   "unidadNombre": "mandarina",
+   "gramosUnidad": 80,
+   "kcal": 53,
+   "p": 0.8,
+   "g": 0.3,
+   "c": 13,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "yuca",
+   "nombre": "Yuca cocida",
+   "marca": "",
+   "categoria": "carbo",
+   "base": "100g",
+   "unidadNombre": null,
+   "gramosUnidad": null,
+   "kcal": 112,
+   "p": 1,
+   "g": 0.3,
+   "c": 27,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "mantequilla-mani",
+   "nombre": "Mantequilla de maní",
+   "marca": "",
+   "categoria": "grasa",
+   "base": "100g",
+   "unidadNombre": "cucharada",
+   "gramosUnidad": 16,
+   "kcal": 590,
+   "p": 25,
+   "g": 50,
+   "c": 20,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": true,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": false,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "nueces",
+   "nombre": "Nueces",
+   "marca": "",
+   "categoria": "grasa",
+   "base": "100g",
+   "unidadNombre": null,
+   "gramosUnidad": null,
+   "kcal": 654,
+   "p": 15,
+   "g": 65,
+   "c": 14,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": true,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": false,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "pepino",
+   "nombre": "Pepino",
+   "marca": "",
+   "categoria": "verdura",
+   "base": "100g",
+   "unidadNombre": null,
+   "gramosUnidad": null,
+   "kcal": 0,
+   "p": 0,
+   "g": 0,
+   "c": 0,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": false,
+   "favorito": false,
+   "libre": true,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "sardina",
+   "nombre": "Sardinas en agua",
+   "marca": "",
+   "categoria": "proteina",
+   "base": "100g",
+   "unidadNombre": null,
+   "gramosUnidad": null,
+   "kcal": 135,
+   "p": 24,
+   "g": 4,
+   "c": 0,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": false,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "caldo-hueso",
+   "nombre": "Caldo de hueso",
+   "marca": "",
+   "categoria": "proteina",
+   "base": "100g",
+   "unidadNombre": null,
+   "gramosUnidad": null,
+   "kcal": 30,
+   "p": 6,
+   "g": 0.5,
+   "c": 0,
+   "estimado": false,
+   "fuente": "tabla",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": true,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "bowl-restaurante",
+   "nombre": "Bowl de pavo de restaurante",
+   "marca": "",
+   "categoria": "restaurante",
+   "base": "unidad",
+   "unidadNombre": "plato",
+   "gramosUnidad": null,
+   "kcal": 500,
+   "p": 40,
+   "g": 18,
+   "c": 45,
+   "estimado": true,
+   "fuente": "restaurante",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": {
+    "nombre": "Restaurante de prueba",
+    "recargo": "plancha",
+    "variante": "única"
+   },
+   "ingredientes": [
+    {
+     "nombre": "Pavo a la plancha",
+     "gramos": 150,
+     "kcal": 210,
+     "p": 30,
+     "g": 9,
+     "c": 0
+    },
+    {
+     "nombre": "Quinua cocida",
+     "gramos": 150,
+     "kcal": 180,
+     "p": 7,
+     "g": 3,
+     "c": 32
+    },
+    {
+     "nombre": "Vegetales",
+     "gramos": 120,
+     "kcal": 110,
+     "p": 3,
+     "g": 6,
+     "c": 13
+    }
+   ],
+   "enCasa": false,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "batido-prueba",
+   "nombre": "Batido de proteína de prueba",
+   "marca": "",
+   "categoria": "suplemento",
+   "base": "unidad",
+   "unidadNombre": "porción",
+   "gramosUnidad": 28,
+   "kcal": 110,
+   "p": 22,
+   "g": 1,
+   "c": 4,
+   "estimado": false,
+   "fuente": "etiqueta",
+   "grasaVisible": false,
+   "coccion": null,
+   "restaurante": null,
+   "ingredientes": null,
+   "enCasa": false,
+   "favorito": false,
+   "libre": false,
+   "origen": "plan",
+   "notas": ""
+  }
+ ],
+ "platos": [
+  {
+   "id": "desayuno-prueba",
+   "nombre": "Desayuno de prueba",
+   "momento": "desayuno",
+   "items": [
+    {
+     "alimentoId": "arepa",
+     "cantidad": 1,
+     "unidad": "und",
+     "estado": null
+    },
+    {
+     "alimentoId": "huevo",
+     "cantidad": 3,
+     "unidad": "und",
+     "estado": null
+    },
+    {
+     "alimentoId": "kumis",
+     "cantidad": 150,
+     "unidad": "g",
+     "estado": null
+    }
+   ],
+   "totales": null,
+   "incompleto": null,
+   "etiquetas": [
+    "diaModelo",
+    "entreno",
+    "descanso"
+   ],
+   "restaurante": null,
+   "origen": "plan",
+   "notas": "Desayuno genérico de prueba."
+  },
+  {
+   "id": "almuerzo-prueba",
+   "nombre": "Almuerzo de prueba",
+   "momento": "almuerzo",
+   "items": [
+    {
+     "alimentoId": "lomo-cerdo",
+     "cantidad": 220,
+     "unidad": "g",
+     "estado": "crudo"
+    },
+    {
+     "alimentoId": "yuca",
+     "cantidad": 250,
+     "unidad": "g",
+     "estado": null
+    },
+    {
+     "alimentoId": "pepino",
+     "cantidad": null,
+     "unidad": null,
+     "estado": null
+    }
+   ],
+   "totales": null,
+   "incompleto": null,
+   "etiquetas": [
+    "diaModelo",
+    "entreno",
+    "descanso"
+   ],
+   "restaurante": null,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "pedido-prueba",
+   "nombre": "Pedido de prueba",
+   "momento": "almuerzo",
+   "items": [],
+   "totales": {
+    "kcal": 650,
+    "p": 45,
+    "g": 22,
+    "c": 70,
+    "incluyeRecargo": true
+   },
+   "incompleto": null,
+   "etiquetas": [
+    "restaurante"
+   ],
+   "restaurante": {
+    "nombre": "Restaurante de prueba",
+    "recargo": "salteado",
+    "variante": "pedido"
+   },
+   "estimado": true,
+   "origen": "plan",
+   "notas": "Pedido genérico de prueba."
+  },
+  {
+   "id": "plato-incompleto",
+   "nombre": "Plato incompleto de prueba",
+   "momento": "cena",
+   "items": [
+    {
+     "alimentoId": "yuca",
+     "cantidad": 150,
+     "unidad": "g",
+     "estado": null
+    },
+    {
+     "alimentoId": "muslo-pavo",
+     "cantidad": 160,
+     "unidad": "g",
+     "estado": "crudo"
+    }
+   ],
+   "totales": null,
+   "incompleto": "Falta un dato de prueba.",
+   "incompletoBuscar": "nueces",
+   "etiquetas": [],
+   "restaurante": null,
+   "origen": "plan",
+   "notas": ""
+  },
+  {
+   "id": "almuerzo-incompleto",
+   "nombre": "Almuerzo incompleto de prueba",
+   "momento": "almuerzo",
+   "items": [
+    {
+     "alimentoId": "quinua",
+     "cantidad": 200,
+     "unidad": "g",
+     "estado": null
+    },
+    {
+     "alimentoId": "sardina",
+     "cantidad": 100,
+     "unidad": "g",
+     "estado": null
+    }
+   ],
+   "totales": null,
+   "incompleto": "Falta otro dato de prueba.",
+   "incompletoBuscar": "nueces",
+   "etiquetas": [],
+   "restaurante": null,
+   "origen": "plan",
+   "notas": ""
+  }
+ ],
+ "rutina": {
+  "nombre": "Rutina de ejemplo",
+  "inicio": "2030-01-07",
+  "semanasTrabajo": 4,
+  "semanaSuave": 5,
+  "suave": {
+   "series": {
+    "5": 3,
+    "4": 2,
+    "3": 2,
+    "2": 1,
+    "1": 1
+   },
+   "rir": "4",
+   "sinFallo": true,
+   "sinSubir": true
+  },
+  "rotacion": [
+   "S1",
+   "S2",
+   "S3"
+  ],
+  "ladoQueDecide": "der",
+  "minutosRecorte": 75,
+  "vecesRecorte": 2,
+  "descansoEntreBloquesSeg": 90,
+  "reglas": [
+   "Regla de ejemplo: las sesiones van en orden.",
+   "Regla de ejemplo: cronómetro en cada descanso."
+  ],
+  "palabras": [
+   {
+    "palabra": "Serie de ejemplo",
+    "significa": "Texto de ejemplo."
+   }
+  ],
+  "sesiones": [
+   {
+    "id": "S1",
+    "nombre": "Cuerpo completo 1",
+    "tipo": "a",
+    "duracionMin": 50,
+    "calentamiento": [
+     "Trote suave 3 min",
+     "Saltos de tijera 20"
+    ],
+    "recorte": "Se quita el press militar.",
+    "bloques": [
+     {
+      "id": "S1-1",
+      "tipo": "superserie",
+      "descansoSeg": 45,
+      "ejercicios": [
+       {
+        "id": "s1-talones",
+        "nombre": "Elevación de talones sentado",
+        "clave": "talones-sentado",
+        "series": 3,
+        "repMin": 15,
+        "repMax": 18,
+        "rir": "2",
+        "fallo": true,
+        "unilateral": false,
+        "pesoInicial": 30,
+        "pesoTexto": null,
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": "zona1",
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [],
+        "noSubirSi": [],
+        "nota": null
+       },
+       {
+        "id": "s1-encogimientos",
+        "nombre": "Encogimientos en polea",
+        "clave": "encogimientos",
+        "series": 3,
+        "repMin": 14,
+        "repMax": 16,
+        "rir": "2",
+        "fallo": true,
+        "unilateral": false,
+        "pesoInicial": 25,
+        "pesoTexto": null,
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": "zona1",
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [],
+        "noSubirSi": [],
+        "nota": null
+       }
+      ]
+     },
+     {
+      "id": "S1-2",
+      "tipo": "simple",
+      "descansoSeg": 100,
+      "ejercicios": [
+       {
+        "id": "s1-stepup",
+        "nombre": "Subida al cajón con mancuerna",
+        "clave": "subida-cajon",
+        "series": 3,
+        "repMin": 6,
+        "repMax": 9,
+        "rir": "1",
+        "fallo": false,
+        "unilateral": true,
+        "pesoInicial": 16,
+        "pesoTexto": null,
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": "zona1",
+        "registraRecorrido": true,
+        "recorridos": [
+         100,
+         80
+        ],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [],
+        "noSubirSi": [
+         "eventoZona1DesdeUltimaSesion",
+         "dolorZona1Mas4"
+        ],
+        "nota": "Paso largo y controlado.",
+        "empeoraPorManana": true,
+        "recorridoSiEmpeora": 80,
+        "unilateralTexto": "por pierna"
+       }
+      ]
+     },
+     {
+      "id": "S1-3",
+      "tipo": "simple",
+      "descansoSeg": 80,
+      "ejercicios": [
+       {
+        "id": "s1-hexagonal",
+        "nombre": "Peso muerto con barra hexagonal",
+        "clave": "peso-muerto-hex",
+        "series": 3,
+        "repMin": 5,
+        "repMax": 7,
+        "rir": "2",
+        "fallo": false,
+        "unilateral": false,
+        "pesoInicial": 80,
+        "pesoTexto": null,
+        "porEncontrar": false,
+        "pesoRegreso": 70,
+        "incremento": null,
+        "zona": "zona1",
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [
+         {
+          "si": "sobranMas3",
+          "accion": "fijar",
+          "kg": 90,
+          "siKg": 80
+         },
+         {
+          "si": "primeraNoLlegaMin",
+          "accion": "fijar",
+          "kg": 70,
+          "siKg": 80
+         }
+        ],
+        "noSubirSi": [],
+        "nota": "Espalda neutra."
+       }
+      ]
+     },
+     {
+      "id": "S1-4",
+      "tipo": "simple",
+      "descansoSeg": 45,
+      "ejercicios": [
+       {
+        "id": "s1-curl",
+        "nombre": "Curl de bíceps con barra",
+        "clave": "curl-barra",
+        "series": 2,
+        "repMin": 12,
+        "repMax": 14,
+        "rir": "1",
+        "fallo": false,
+        "unilateral": false,
+        "pesoInicial": null,
+        "pesoTexto": "Por encontrar",
+        "porEncontrar": true,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": null,
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [
+         {
+          "si": "sobranMas3",
+          "accion": "sumar",
+          "kg": null
+         },
+         {
+          "si": "noLlegaMin",
+          "accion": "restar",
+          "kg": null
+         }
+        ],
+        "noSubirSi": [],
+        "nota": null
+       }
+      ]
+     },
+     {
+      "id": "S1-5",
+      "tipo": "simple",
+      "descansoSeg": 60,
+      "ejercicios": [
+       {
+        "id": "s1-militar",
+        "nombre": "Press militar con mancuernas",
+        "clave": "press-militar",
+        "series": 3,
+        "repMin": 10,
+        "repMax": 14,
+        "rir": "1-2",
+        "fallo": true,
+        "unilateral": false,
+        "pesoInicial": 14,
+        "pesoTexto": null,
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": "zona1",
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [],
+        "noSubirSi": [],
+        "nota": null,
+        "volverAlAnterior": true,
+        "notaSiSeries": {
+         "min": 3,
+         "texto": "La tercera serie va sola (ejemplo)."
+        }
+       }
+      ]
+     }
+    ],
+    "duracionDesdeSemana": {
+     "semana": 2,
+     "min": 55
+    }
+   },
+   {
+    "id": "S2",
+    "nombre": "Cuerpo completo 2",
+    "tipo": "b",
+    "duracionMin": 45,
+    "calentamiento": [
+     "Remo en máquina 3 min"
+    ],
+    "recorte": "Se quita la plancha lateral.",
+    "bloques": [
+     {
+      "id": "S2-1",
+      "tipo": "simple",
+      "descansoSeg": 80,
+      "ejercicios": [
+       {
+        "id": "s2-banca",
+        "nombre": "Press de banca con barra",
+        "clave": "press-banca",
+        "series": 5,
+        "repMin": 3,
+        "repMax": 5,
+        "rir": "1",
+        "fallo": false,
+        "unilateral": false,
+        "pesoInicial": 60,
+        "pesoTexto": null,
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": "zona2",
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [],
+        "noSubirSi": [
+         "dolorZona2Mas4"
+        ],
+        "nota": null
+       }
+      ]
+     },
+     {
+      "id": "S2-2",
+      "tipo": "superserie",
+      "descansoSeg": 100,
+      "ejercicios": [
+       {
+        "id": "s2-jalon",
+        "nombre": "Jalón en máquina",
+        "clave": "jalon-maquina",
+        "series": 3,
+        "repMin": 6,
+        "repMax": 10,
+        "rir": "1-2",
+        "fallo": false,
+        "unilateral": false,
+        "pesoInicial": null,
+        "pesoTexto": "Una placa arriba de 40 kg",
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": "zona2",
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [],
+        "noSubirSi": [],
+        "nota": null,
+        "pesoReferencia": 40
+       },
+       {
+        "id": "s2-fondos",
+        "nombre": "Fondos asistidos",
+        "clave": "fondos",
+        "series": 4,
+        "repMin": 8,
+        "repMax": 10,
+        "rir": "2",
+        "fallo": false,
+        "unilateral": false,
+        "pesoInicial": 30,
+        "pesoTexto": null,
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": "zona2",
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [
+         {
+          "si": "sobranMas3",
+          "accion": "sumar",
+          "kg": 5
+         },
+         {
+          "si": "noLlegaMin",
+          "accion": "restar",
+          "kg": 5
+         }
+        ],
+        "noSubirSi": [],
+        "nota": null
+       }
+      ]
+     },
+     {
+      "id": "S2-3",
+      "tipo": "simple",
+      "descansoSeg": 45,
+      "ejercicios": [
+       {
+        "id": "s2-plancha",
+        "nombre": "Plancha lateral con disco",
+        "clave": "plancha-lateral",
+        "series": 2,
+        "repMin": 20,
+        "repMax": 30,
+        "rir": "2",
+        "fallo": false,
+        "unilateral": false,
+        "pesoInicial": 5,
+        "pesoTexto": null,
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": null,
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [
+         {
+          "semana": 2,
+          "series": 3,
+          "condicion": "zona2-ok-2-sesiones",
+          "texto": "si la zona B viene bien (ejemplo)."
+         }
+        ],
+        "ajusteSesion": [],
+        "noSubirSi": [],
+        "nota": null
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "S3",
+    "nombre": "Cuerpo completo 3",
+    "tipo": "a",
+    "duracionMin": 40,
+    "calentamiento": [
+     "Bicicleta 5 min"
+    ],
+    "recorte": "Una serie menos de talones de pie.",
+    "bloques": [
+     {
+      "id": "S3-1",
+      "tipo": "simple",
+      "descansoSeg": 100,
+      "ejercicios": [
+       {
+        "id": "s3-stepup",
+        "nombre": "Subida al cajón con mancuerna",
+        "clave": "subida-cajon",
+        "series": 3,
+        "repMin": 6,
+        "repMax": 9,
+        "rir": "1",
+        "fallo": false,
+        "unilateral": true,
+        "pesoInicial": 16,
+        "pesoTexto": "El de la sesión 1",
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": "zona1",
+        "registraRecorrido": true,
+        "recorridos": [
+         100,
+         80
+        ],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [],
+        "noSubirSi": [
+         "eventoZona1DesdeUltimaSesion",
+         "dolorZona1Mas4"
+        ],
+        "nota": null,
+        "empeoraPorManana": true,
+        "recorridoSiEmpeora": 80,
+        "unilateralTexto": "por pierna"
+       }
+      ]
+     },
+     {
+      "id": "S3-2",
+      "tipo": "simple",
+      "descansoSeg": 60,
+      "ejercicios": [
+       {
+        "id": "s3-talones-pie",
+        "nombre": "Elevación de talones de pie",
+        "clave": "talones-pie",
+        "series": 4,
+        "repMin": 12,
+        "repMax": 15,
+        "rir": "2",
+        "fallo": false,
+        "unilateral": false,
+        "pesoInicial": null,
+        "pesoTexto": "El de los talones sentado",
+        "porEncontrar": false,
+        "pesoRegreso": null,
+        "incremento": null,
+        "zona": "zona1",
+        "registraRecorrido": false,
+        "recorridos": [],
+        "seriesDesdeSemana": [],
+        "ajusteSesion": [],
+        "noSubirSi": [],
+        "nota": null,
+        "pesoInicialDe": "talones-sentado"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "equipos": {
+   "mancuernas": [
+    "subida-cajon",
+    "press-militar"
+   ]
+  }
+ },
+ "registros": {
+  "dias": {},
+  "sesiones": [
+   {
+    "id": "previa-1",
+    "fecha": "2029-12-18",
+    "sesionId": "S1",
+    "nombre": "Cuerpo completo 1",
+    "gimnasio": "Gimnasio Norte",
+    "inicio": "2029-12-18T09:00:00+00:00",
+    "fin": "2029-12-18T09:50:00+00:00",
+    "semanaBloque": null,
+    "suave": false,
+    "dolorAntes": {},
+    "ejercicios": [
+     {
+      "ejercicioId": "s1-hexagonal",
+      "clave": "peso-muerto-hex",
+      "nombre": "Peso muerto con barra hexagonal",
+      "series": [
+       {
+        "kg": 75,
+        "reps": 6,
+        "rir": 2,
+        "lado": null,
+        "fallo": false,
+        "tramos": [],
+        "tecnica": "normal"
+       }
+      ],
+      "dolor": null,
+      "recorrido": null,
+      "alarmas": [],
+      "nota": ""
+     },
+     {
+      "ejercicioId": "s1-talones",
+      "clave": "talones-sentado",
+      "nombre": "Elevación de talones sentado",
+      "series": [
+       {
+        "kg": 32.5,
+        "reps": 18,
+        "rir": 0,
+        "lado": null,
+        "fallo": true,
+        "tramos": [
+         {
+          "kg": 27.5,
+          "reps": 8
+         }
+        ],
+        "tecnica": "bajada"
+       }
+      ],
+      "dolor": null,
+      "recorrido": null,
+      "alarmas": [],
+      "nota": ""
+     },
+     {
+      "ejercicioId": "s1-encogimientos",
+      "clave": "encogimientos",
+      "nombre": "Encogimientos en polea",
+      "series": [
+       {
+        "kg": 27.5,
+        "reps": 12,
+        "rir": 2,
+        "lado": null,
+        "fallo": false,
+        "tramos": [],
+        "tecnica": "normal"
+       }
+      ],
+      "dolor": null,
+      "recorrido": null,
+      "alarmas": [],
+      "nota": ""
+     },
+     {
+      "ejercicioId": "s1-militar",
+      "clave": "press-militar",
+      "nombre": "Press militar con mancuernas",
+      "series": [
+       {
+        "kg": 18,
+        "reps": 12,
+        "rir": 2,
+        "lado": null,
+        "fallo": false,
+        "tramos": [],
+        "tecnica": "normal"
+       }
+      ],
+      "dolor": null,
+      "recorrido": null,
+      "alarmas": [],
+      "nota": ""
+     },
+     {
+      "ejercicioId": "s1-curl",
+      "clave": "curl-barra",
+      "nombre": "Curl de bíceps con barra",
+      "series": [
+       {
+        "kg": 22.7,
+        "reps": 12,
+        "rir": 2,
+        "lado": null,
+        "fallo": false,
+        "tramos": [],
+        "tecnica": "normal"
+       }
+      ],
+      "dolor": null,
+      "recorrido": null,
+      "alarmas": [],
+      "nota": ""
+     }
+    ],
+    "soloLectura": true,
+    "notas": "Bloque anterior de ejemplo"
+   }
+  ],
+  "dolor": [],
+  "pesos": [
+   {
+    "fecha": "2029-12-25",
+    "kg": 68.2,
+    "tipo": "casa",
+    "nota": ""
+   },
+   {
+    "fecha": "2029-12-27",
+    "kg": 68.0,
+    "tipo": "casa",
+    "nota": ""
+   },
+   {
+    "fecha": "2029-12-29",
+    "kg": 67.9,
+    "tipo": "casa",
+    "nota": ""
+   },
+   {
+    "fecha": "2030-01-01",
+    "kg": 67.8,
+    "tipo": "casa",
+    "nota": ""
+   },
+   {
+    "fecha": "2030-01-03",
+    "kg": 67.6,
+    "tipo": "casa",
+    "nota": ""
+   },
+   {
+    "fecha": "2030-01-05",
+    "kg": 67.5,
+    "tipo": "casa",
+    "nota": ""
+   },
+   {
+    "fecha": "2030-01-08",
+    "kg": 67.4,
+    "tipo": "casa",
+    "nota": ""
+   }
+  ],
+  "medidas": [],
+  "cintura": [],
+  "fotos": [],
+  "bioimpedancias": [],
+  "historialDias": [
+   {
+    "fecha": "2030-01-05",
+    "tipo": "descanso",
+    "kcal": 1950,
+    "p": 148,
+    "g": 60,
+    "c": 200,
+    "nota": ""
+   },
+   {
+    "fecha": "2030-01-06",
+    "tipo": "entreno",
+    "kcal": 2010,
+    "p": 152,
+    "g": 61,
+    "c": 214,
+    "nota": ""
+   }
+  ],
+  "ultimaCopia": null
+ }
+}

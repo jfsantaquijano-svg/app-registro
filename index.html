@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0e1014">
+  <meta name="description" content="Registro de comida, entreno y cuerpo que funciona sin internet.">
+  <title>Registro</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="iconos/icono-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="iconos/icono-192.png">
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <header class="cab">
+    <h1 id="titulo">Registro</h1>
+    <button class="btn-menu" id="btn-menu" type="button" aria-label="Menú">⋮</button>
+  </header>
+  <main id="vista" aria-live="polite">
+    <p class="vacio">Cargando…</p>
+  </main>
+  <button class="fab" id="fab" type="button" data-testid="btn-comida" hidden>+ Comida</button>
+  <nav class="tabs" aria-label="Secciones">
+    <button type="button" data-tab="hoy"><span class="ico" aria-hidden="true">🏠</span>Hoy</button>
+    <button type="button" data-tab="comida"><span class="ico" aria-hidden="true">🍽️</span>Comida</button>
+    <button type="button" data-tab="entreno"><span class="ico" aria-hidden="true">🏋️</span>Entreno</button>
+    <button type="button" data-tab="cuerpo"><span class="ico" aria-hidden="true">📈</span>Cuerpo</button>
+  </nav>
+  <noscript>Esta app necesita JavaScript.</noscript>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
