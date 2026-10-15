@@ -228,6 +228,15 @@ test('sesión completa: superserie con ⚡ y bajada, primer lado del archivo, aj
   );
   assert.equal(db['reg.dias']['2030-01-09'].tipo, 'entreno');
 
+  // Hoy lo dice sin entrar a Entreno: ya entrenó y abajo cuál es la próxima
+  await page.locator('nav.tabs [data-tab="hoy"]').click();
+  const btnEntrenar = await page.getByTestId('btn-entrenar').innerText();
+  assert.match(btnEntrenar, /Ya entrenaste hoy/);
+  assert.match(btnEntrenar, /La próxima: Cuerpo completo 2/);
+  // Una sola alarma roja de copia: si está la tarjeta, la franja de arriba no se pinta de rojo
+  assert.equal(await page.getByTestId('aviso-copia').count(), 1);
+  assert.equal(await page.locator('[data-testid="ultima-copia"].vieja').count(), 0);
+
   // La misma noche, la pestaña dice "Próxima sesión"
   await page.locator('nav.tabs [data-tab="entreno"]').click();
   await page.getByText('Próxima sesión · Gimnasio Norte').waitFor();
@@ -259,8 +268,24 @@ test('sesión completa: superserie con ⚡ y bajada, primer lado del archivo, aj
   await page.getByTestId('evento-valor-2').click();
   await page.getByTestId('evento-duracion').fill('10');
   await page.getByTestId('evento-actividad').fill('Caminando');
+  // Todo lo que pide el plan por cada aparición, no solo la hora y el 0 a 10
+  await page.getByTestId('evento-hace-cuanto').fill('Media hora');
+  await page.getByTestId('evento-parte').fill('Por dentro');
+  await page.getByTestId('evento-quito').fill('Cambiar de posición');
+  await page.getByTestId('evento-apretar').click();
+  await page.getByTestId('evento-hormigueo').click();
+  // El hueco contra la sesión anterior de esa zona lo calcula la app
+  assert.match(await page.getByTestId('evento-horas').innerText(), /entre el final de tu entreno anterior/);
   await page.getByTestId('evento-guardar').click();
   await esperarAviso(page, 'Anotado');
+  const ev = (await leerDB(page))['reg.dolor'].find((d) => d.momento === 'evento');
+  assert.equal(ev.haceCuanto, 'Media hora');
+  assert.equal(ev.parte, 'Por dentro');
+  assert.equal(ev.queLoQuito, 'Cambiar de posición');
+  assert.equal(ev.alApretar, true);
+  assert.equal(ev.hormigueo, true);
+  assert.equal(ev.duracionMin, 10);
+  assert.ok(ev.horasDesdeEntreno > 0, `horasDesdeEntreno: ${ev.horasDesdeEntreno}`);
   await page.getByTestId('elegir-sesion-S3').click();
   assert.match(await page.getByTestId('motivo-s3-stepup').innerText(), /no sube: Texto de ejemplo: no sube por el registro de la zona A/);
 
@@ -460,6 +485,105 @@ test('superserie: dejar un ejercicio para el final, consejo cuando el dolor pasa
   assert.equal(s.ejercicios.find((e) => e.ejercicioId === 's1-talones').series.length, 3);
   // Lo que se dejó para el final quedó pendiente en su propio bloque (la sesión se terminó antes)
   assert.equal(s.ejercicios.find((e) => e.ejercicioId === 's1-encogimientos').series.length, 0);
+  assert.deepEqual(errores, []);
+  await contexto.close();
+});
+
+test('reglas del plan en pantalla: un solo ejercicio sube por sesión y el peso con puerta de dos sesiones', async () => {
+  const { page, contexto, errores } = await nuevaPagina(nav, srv.url);
+  await importarArranque(page);
+  // La rutina con las dos reglas puestas, y una sesión al tope en los tres ejercicios de ese bloque.
+  await page.evaluate(async () => {
+    const abrir = () => new Promise((res) => (indexedDB.open('app-registro').onsuccess = (e) => res(e.target.result)));
+    const db = await abrir();
+    const leer = (k) => new Promise((res) => (db.transaction('datos').objectStore('datos').get(k).onsuccess = (e) => res(e.target.result)));
+    const rutina = await leer('rutina');
+    rutina.subidasPorSesion = 1;
+    const s1 = rutina.sesiones.find((s) => s.id === 'S1');
+    const ejs = s1.bloques.flatMap((b) => b.ejercicios);
+    // El de la zona con recorrido queda con la puerta de dos sesiones y un incremento fijo.
+    const conPuerta = ejs.find((e) => e.id === 's1-stepup');
+    conPuerta.subirTrasSesionesOk = 2;
+    conPuerta.incremento = 2;
+    conPuerta.empeoraPorManana = true;
+    conPuerta.noSubirSi = ['dolorZona1Mas4'];
+    const alTope = (ej, kg) => ({
+      ejercicioId: ej.id,
+      clave: ej.clave,
+      nombre: ej.nombre,
+      dolor: 2,
+      recorrido: ej.registraRecorrido ? 100 : null,
+      seriesPlan: ej.series,
+      falloPlan: false,
+      series: (ej.unilateral ? ['der', 'izq'] : [null]).flatMap((lado) =>
+        Array.from({ length: ej.series }, () => ({ kg, reps: ej.repMax, rir: 2, lado, fallo: false, tramos: [], tecnica: 'normal' })),
+      ),
+    });
+    const ses = await leer('reg.sesiones');
+    ses.push({
+      id: 'tope1', fecha: '2030-01-08', sesionId: 'S1', nombre: 'Cuerpo completo 1', gimnasio: 'Gimnasio Norte',
+      inicio: '2030-01-08T17:00:00', fin: '2030-01-08T17:50:00', semanaBloque: 1, suave: false, dolorAntes: { zona1: 1 },
+      ejercicios: [alTope(ejs.find((e) => e.id === 's1-talones'), 30), alTope(ejs.find((e) => e.id === 's1-encogimientos'), 25), alTope(conPuerta, 16)],
+      soloLectura: false, notas: '',
+    });
+    const dol = await leer('reg.dolor');
+    dol.push({ fecha: '2030-01-09', hora: null, zona: 'zona1', momento: 'manana', valor: 1, durmioSobre: false, duracionMin: null, actividad: '' });
+    await new Promise((res) => {
+      const tx = db.transaction('datos', 'readwrite');
+      tx.objectStore('datos').put(rutina, 'rutina');
+      tx.objectStore('datos').put(ses, 'reg.sesiones');
+      tx.objectStore('datos').put(dol, 'reg.dolor');
+      tx.oncomplete = res;
+    });
+  });
+  await page.reload();
+  await page.waitForSelector('body[data-listo="1"]');
+  await page.locator('nav.tabs [data-tab="entreno"]').click();
+  await page.getByTestId('elegir-sesion-S1').click();
+
+  // Los dos primeros llegaron al tope, pero solo uno sube: el otro repite el peso y dice a quién le toca.
+  const talones = await page.getByTestId('motivo-s1-talones').innerText();
+  const encog = await page.getByTestId('motivo-s1-encogimientos').innerText();
+  const suben = [talones, encog].filter((x) => /sube lo mínimo|sube una placa/.test(x));
+  const ceden = [talones, encog].filter((x) => /el turno de subir es de/.test(x));
+  assert.equal(suben.length, 1, `subieron: ${suben.length}`);
+  assert.equal(ceden.length, 1, `cedieron: ${ceden.length}`);
+  assert.match(ceden[0], /repite el peso/);
+
+  // El de la puerta llegó al tope una sola vez: no sube todavía y lo dice con la cuenta.
+  const puerta = await page.getByTestId('motivo-s1-stepup').innerText();
+  assert.match(puerta, /el plan pide 2 sesiones seguidas/);
+  assert.match(puerta, /llevas 1/);
+  assert.match(await page.getByTestId('plan-s1-stepup').innerText(), /16 kg/);
+
+  // La segunda vez seguida cumpliendo: ahí sí sube, y sube el incremento del plan (16 + 2).
+  // Aquí se suelta el límite de una subida por sesión, para mirar solo la puerta de las dos sesiones.
+  await page.evaluate(async () => {
+    const abrir = () => new Promise((res) => (indexedDB.open('app-registro').onsuccess = (e) => res(e.target.result)));
+    const db = await abrir();
+    const leer = (k) => new Promise((res) => (db.transaction('datos').objectStore('datos').get(k).onsuccess = (e) => res(e.target.result)));
+    const rutina = await leer('rutina');
+    delete rutina.subidasPorSesion;
+    const ses = await leer('reg.sesiones');
+    const prim = ses.find((s) => s.id === 'tope1');
+    ses.push({ ...prim, id: 'tope2', fecha: '2030-01-10', inicio: '2030-01-10T17:00:00', fin: '2030-01-10T17:50:00', ejercicios: prim.ejercicios.map((e) => ({ ...e })) });
+    const dol = await leer('reg.dolor');
+    dol.push({ fecha: '2030-01-11', hora: null, zona: 'zona1', momento: 'manana', valor: 1, durmioSobre: false, duracionMin: null, actividad: '' });
+    await new Promise((res) => {
+      const tx = db.transaction('datos', 'readwrite');
+      tx.objectStore('datos').put(rutina, 'rutina');
+      tx.objectStore('datos').put(ses, 'reg.sesiones');
+      tx.objectStore('datos').put(dol, 'reg.dolor');
+      tx.oncomplete = res;
+    });
+  });
+  await page.clock.setSystemTime(new Date('2030-01-12T08:00:00'));
+  await page.reload();
+  await page.waitForSelector('body[data-listo="1"]');
+  await page.locator('nav.tabs [data-tab="entreno"]').click();
+  await page.getByTestId('elegir-sesion-S1').click();
+  assert.match(await page.getByTestId('plan-s1-stepup').innerText(), /18 kg/);
+  assert.doesNotMatch(await page.getByTestId('motivo-s1-stepup').innerText(), /sesiones seguidas/);
   assert.deepEqual(errores, []);
   await contexto.close();
 });

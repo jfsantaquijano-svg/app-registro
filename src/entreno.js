@@ -31,6 +31,8 @@ import {
   ladoQueDecide,
   ordenLados,
   descansoEntreBloques,
+  unaSubidaPorSesion,
+  ejerciciosConNombre,
 } from './progresion.js';
 import { h, montar, hoja, confirmar, aviso, stepper, chips, escala010, casilla, campo, inputNum, inputTexto, seccion, vacio } from './ui.js';
 
@@ -154,6 +156,21 @@ function ctxSugerencia(ej, gimnasio, alEmpezar) {
   return { rutina: S.rutina, ej, sesiones: S.reg.sesiones, dolor: S.reg.dolor, ajustes: S.ajustes, gimnasio, hoy: hoy(), alEmpezar };
 }
 
+/**
+ * Sugerencias de todos los ejercicios de una sesión, ya con la regla del plan de que
+ * un solo ejercicio sube de peso por sesión. Devuelve un mapa por id de ejercicio.
+ */
+function sugerenciasDeSesion(rs, gimnasio, alEmpezar = false, soloConDatos = null) {
+  const ejs = todosLosEjercicios(rs).filter((ej) => (soloConDatos ? !!soloConDatos(ej) : true));
+  const lista = unaSubidaPorSesion({
+    rutina: S.rutina,
+    sesiones: S.reg.sesiones,
+    gimnasio,
+    lista: ejs.map((ej) => ({ ej, sug: sugerirPeso(ctxSugerencia(ej, gimnasio, alEmpezar)) })),
+  });
+  return new Map(lista.map(({ ej, sug }) => [ej.id, sug]));
+}
+
 /** Pesos que ya se registraron en esa máquina o en ese par de mancuernas, en ese gimnasio. */
 function conocidosDe(ej, gimnasio) {
   return pesosMaquina(S.reg.sesiones, clavesMismoEquipo(S.rutina, ej.clave), gimnasio);
@@ -272,8 +289,8 @@ function abrirEmpezar(rs) {
 export async function empezarSesion(rs, gimnasio, dolorAntes) {
   const fecha = hoy();
   const { semana, plan, suave } = planDelDia(rs, fecha);
-  const sug = {};
-  for (const ej of todosLosEjercicios(rs)) sug[ej.id] = sugerirPeso(ctxSugerencia(ej, gimnasio, true));
+  // Las sugerencias con las que arranca la sesión ya traen la regla de un solo ejercicio que sube.
+  const sug = Object.fromEntries(sugerenciasDeSesion(rs, gimnasio, true));
   const reg = {
     id: uid(),
     fecha,
@@ -986,11 +1003,15 @@ function mostrarResumenSesion(reg) {
   const hj = hoja({ titulo: 'Sesión terminada', testid: 'hoja-fin' });
   const dur = duracionMin(reg);
   const regla = reglaRecorte(S.rutina);
+  const sugs = rs ? sugerenciasDeSesion(rs, reg.gimnasio, false, (ej) => datosEj(reg, ej.id)?.series.length) : new Map();
+  // El párrafo del salto de la máquina se dice una sola vez al final, no en cada renglón.
+  let notaPlaca = null;
   const filas = rs
     ? todosLosEjercicios(rs)
-        .filter((ej) => datosEj(reg, ej.id)?.series.length)
+        .filter((ej) => sugs.has(ej.id))
         .map((ej) => {
-          const s = sugerirPeso(ctxSugerencia(ej, reg.gimnasio, false));
+          const s = sugs.get(ej.id);
+          if (s.notaPlaca) notaPlaca = s.notaPlaca;
           return h('li', {}, h('div', { class: 'item' }, h('div', { class: 'item-txt' }, h('div', { class: 'item-tit' }, ej.nombre), h('div', { class: 'item-sub' }, `Próxima vez: ${textoSug(s)}${s.recorrido != null ? ` · hasta ${s.recorrido}°` : ''}${s.provisional ? ' (provisional)' : ''} · ${s.motivo}`))));
         })
     : [];
@@ -1001,6 +1022,7 @@ function mostrarResumenSesion(reg) {
     textoRecorte(rs, (r) => `Ya van ${r.veces} veces de más de ${r.minutos} min. Recorte para la próxima: `),
     h('h3', { class: 'tarjeta-tit mt' }, 'Peso de la próxima vez'),
     h('ul', { class: 'lista', testid: 'proxima-vez' }, filas),
+    notaPlaca ? h('p', { class: 'suave chico', testid: 'nota-placa' }, `Donde dice "sube una placa": ${notaPlaca}`) : null,
     h('p', { class: 'suave chico' }, 'Queda en firme al empezar la próxima sesión de ese ejercicio, cuando ya se sabe cómo amaneciste.'),
     h('div', { class: 'fila-btns fila-fija' }, h('button', { class: 'btn btn-primario btn-grande', type: 'button', testid: 'fin-listo', onclick: () => hj.cerrar() }, 'Listo')),
   );
@@ -1008,22 +1030,53 @@ function mostrarResumenSesion(reg) {
 
 // ---------- Dolor fuera del gimnasio ----------
 
+/**
+ * Horas entre el final de la última sesión que trabaja esa zona y el momento del registro.
+ * Lo calcula la app: es un dato que nadie tiene por qué llevar de memoria.
+ */
+export function horasDesdeUltimoEntreno(zona, fecha, hora) {
+  const tipos = S.ajustes?.zonas?.[zona]?.sesiones || [];
+  if (!tipos.length) return null;
+  const tipoDe = new Map((S.rutina?.sesiones || []).map((s) => [s.id, s.tipo]));
+  const ult = sesionesValidas(S.reg.sesiones)
+    .filter((s) => tipos.includes(tipoDe.get(s.sesionId)))
+    .slice(-1)[0];
+  if (!ult) return null;
+  const fin = Date.parse(ult.fin || ult.inicio || `${ult.fecha}T12:00:00`);
+  const cuando = Date.parse(`${fecha}T${hora || '12:00'}:00`);
+  if (!Number.isFinite(fin) || !Number.isFinite(cuando) || cuando < fin) return null;
+  return Math.round((cuando - fin) / 3600000);
+}
+
 export function abrirEventoDolor() {
   const hj = hoja({ titulo: 'Dolor fuera del gimnasio', testid: 'hoja-evento' });
   const zonas = Object.keys(S.ajustes?.zonas || {});
   let zona = zonas[0] || null;
   let valor = null;
+  let alApretar = false;
+  let hormigueo = false;
   const fFecha = h('input', { type: 'date', class: 'input', value: hoy(), 'aria-label': 'Fecha' });
   const fHora = h('input', { type: 'time', class: 'input', value: horaLocal(), 'aria-label': 'Hora' });
   const fDur = inputNum({ placeholder: 'minutos', testid: 'evento-duracion', etiqueta: 'Cuánto duró', decimal: false });
   const fAct = inputTexto({ placeholder: 'Qué estabas haciendo', testid: 'evento-actividad', etiqueta: 'Qué estabas haciendo' });
+  const fDesde = inputTexto({ placeholder: 'Desde cuándo venías en eso', testid: 'evento-hace-cuanto', etiqueta: 'Desde cuándo venías en eso' });
+  const fParte = inputTexto({ placeholder: 'En qué parte', testid: 'evento-parte', etiqueta: 'En qué parte' });
+  const fQuito = inputTexto({ placeholder: 'Qué lo quitó', testid: 'evento-quito', etiqueta: 'Qué lo quitó' });
   const ayuda = h('p', { class: 'suave chico' });
+  const horas = h('p', { class: 'suave chico', testid: 'evento-horas' });
+  const pintarHoras = () => {
+    const n = zona ? horasDesdeUltimoEntreno(zona, fFecha.value || hoy(), fHora.value || horaLocal()) : null;
+    horas.textContent = n == null ? '' : `Pasaron ${n} ${n === 1 ? 'hora' : 'horas'} entre el final de tu entreno anterior de esa zona y esta hora. La app lo calcula sola.`;
+  };
+  fFecha.addEventListener('change', pintarHoras);
+  fHora.addEventListener('change', pintarHoras);
   // Dónde duele, con las palabras del archivo: sirve para confirmar que es el mismo sitio.
   const donde = h('p', { class: 'suave chico', testid: 'evento-donde' });
   const pintarAyuda = () => {
     const k = zona ? `evento${zona.charAt(0).toUpperCase()}${zona.slice(1)}` : null;
     ayuda.textContent = (k && S.ajustes?.textos?.[k]) || '';
     donde.textContent = (zona && S.ajustes?.zonas?.[zona]?.donde) || '';
+    pintarHoras();
   };
   montar(
     hj.cuerpo,
@@ -1043,7 +1096,11 @@ export function abrirEventoDolor() {
     h('div', { class: 'dos-col mt' }, campo('Fecha', fFecha), campo('Hora', fHora)),
     h('div', { class: 'etq-linea' }, 'Dolor (0–10)'),
     escala010({ testid: 'evento-valor', alElegir: (v) => (valor = v) }),
-    h('div', { class: 'mt' }, campo('Cuánto duró (min)', fDur), campo('Qué estabas haciendo', fAct)),
+    h('div', { class: 'mt' }, campo('Cuánto duró (min)', fDur), campo('Qué estabas haciendo', fAct), campo('Desde cuándo venías en eso', fDesde)),
+    h('div', { class: 'mt' }, campo('En qué parte', fParte), campo('Qué lo quitó', fQuito)),
+    casilla('¿Si haces presión ahí, duele ahora?', { alCambiar: (v) => (alApretar = v), testid: 'evento-apretar' }),
+    casilla('¿Hubo hormigueo?', { alCambiar: (v) => (hormigueo = v), testid: 'evento-hormigueo' }),
+    horas,
     h(
       'button',
       {
@@ -1052,7 +1109,24 @@ export function abrirEventoDolor() {
         testid: 'evento-guardar',
         onclick: async () => {
           if (valor == null) return aviso('Toca un número de 0 a 10.');
-          S.reg.dolor.push({ fecha: fFecha.value || hoy(), hora: fHora.value || horaLocal(), zona, momento: 'evento', valor, durmioSobre: null, duracionMin: num(fDur.value), actividad: fAct.value.trim() });
+          const fecha = fFecha.value || hoy();
+          const hora = fHora.value || horaLocal();
+          S.reg.dolor.push({
+            fecha,
+            hora,
+            zona,
+            momento: 'evento',
+            valor,
+            durmioSobre: null,
+            duracionMin: num(fDur.value),
+            actividad: fAct.value.trim(),
+            haceCuanto: fDesde.value.trim() || null,
+            parte: fParte.value.trim() || null,
+            queLoQuito: fQuito.value.trim() || null,
+            alApretar,
+            hormigueo,
+            horasDesdeEntreno: horasDesdeUltimoEntreno(zona, fecha, hora),
+          });
           hj.cerrar();
           await guardar('reg.dolor');
           aviso('Anotado.');
@@ -1062,15 +1136,13 @@ export function abrirEventoDolor() {
     ),
   );
   pintarAyuda();
+  pintarHoras();
 }
 
 // ---------- Historial y revisión ----------
 
 function claves() {
-  const out = new Map();
-  for (const s of S.rutina?.sesiones || []) for (const ej of todosLosEjercicios(s)) if (!out.has(ej.clave)) out.set(ej.clave, ej.nombre);
-  for (const s of S.reg.sesiones) for (const e of s.ejercicios || []) if (!out.has(e.clave)) out.set(e.clave, e.nombre);
-  return out;
+  return ejerciciosConNombre(S.rutina, S.reg.sesiones);
 }
 
 export function abrirHistorial() {
@@ -1080,8 +1152,16 @@ export function abrirHistorial() {
     h(
       'ul',
       { class: 'lista' },
-      [...claves().entries()].map(([clave, nombre]) =>
-        h('li', {}, h('button', { class: 'item', type: 'button', onclick: () => abrirHistorialClave(clave, nombre) }, h('div', { class: 'item-txt' }, h('div', { class: 'item-tit' }, nombre)))),
+      [...claves().entries()].map(([clave, { nombre, sub }]) =>
+        h(
+          'li',
+          {},
+          h(
+            'button',
+            { class: 'item', type: 'button', onclick: () => abrirHistorialClave(clave, sub ? `${nombre} · ${sub}` : nombre) },
+            h('div', { class: 'item-txt' }, h('div', { class: 'item-tit' }, nombre), sub ? h('div', { class: 'item-sub' }, sub) : null),
+          ),
+        ),
       ),
     ),
   );
@@ -1141,10 +1221,10 @@ export function abrirRevision() {
       h(
         'ul',
         { class: 'lista', testid: 'revision' },
-        [...claves().entries()].map(([clave, nombre]) => {
+        [...claves().entries()].map(([clave, { nombre, sub }]) => {
           const ra = resumenSemanaEjercicio(clave, a);
           const rb = resumenSemanaEjercicio(clave, b);
-          return h('li', {}, h('div', { class: 'item' }, h('div', { class: 'item-txt' }, h('div', { class: 'item-tit' }, nombre), h('div', { class: 'item-sub' }, `Semana ${a}: ${ra ? ra.texto : '—'}`), h('div', { class: 'item-sub' }, `Semana ${b}: ${rb ? rb.texto : '—'}`))));
+          return h('li', {}, h('div', { class: 'item' }, h('div', { class: 'item-txt' }, h('div', { class: 'item-tit' }, sub ? `${nombre} · ${sub}` : nombre), h('div', { class: 'item-sub' }, `Semana ${a}: ${ra ? ra.texto : '—'}`), h('div', { class: 'item-sub' }, `Semana ${b}: ${rb ? rb.texto : '—'}`))));
         }),
       ),
     );
@@ -1237,6 +1317,7 @@ export function render(cont) {
   const hoyYa = yaEntrenoHoy();
   const regla = reglaRecorte(S.rutina);
   const calent = rs.calentamiento || [];
+  const sugs = sugerenciasDeSesion(rs, gym, false);
   montar(
     cont,
     seccion(
@@ -1272,7 +1353,7 @@ export function render(cont) {
           { class: 'ej' },
           h('div', { class: 'suave chico' }, `${bi + 1}. ${b.tipo === 'superserie' ? 'Superserie · ' : ''}descanso ${fmtDuracion((b.descansoSeg || 0) * 1000)}`),
           b.ejercicios.map((ej) => {
-            const s = sugerirPeso(ctxSugerencia(ej, gym, false));
+            const s = sugs.get(ej.id);
             return h(
               'div',
               { class: 'mb' },
@@ -1280,7 +1361,8 @@ export function render(cont) {
               h('div', { class: 'suave chico', testid: `plan-${ej.id}` }, `${textoPlan(ej, plan[ej.id])} · ${textoSug(s)}${s.recorrido != null ? ` · hasta ${s.recorrido}°` : ''}${s.provisional ? ' (provisional)' : ''}`),
               // El motivo no se repite si ya lo dijo el peso (los pesos por encontrar muestran ahí el texto del plan).
               s.motivo && s.motivo !== textoSug(s) ? h('div', { class: 'chico suave', testid: `motivo-${ej.id}` }, s.motivo) : null,
-              [...textosSeriesDesdeSemana(ej), ...textosAjusteSesion(ej)].map((t) => h('div', { class: 'chico suave' }, t)),
+              s.notaPlaca ? h('div', { class: 'chico suave' }, s.notaPlaca) : null,
+              [...textosSeriesDesdeSemana(ej), ...textosAjusteSesion(ej, s.kg, ['inicial', 'buscar'].includes(s.accion))].map((t) => h('div', { class: 'chico suave' }, t)),
               notaEj(ej, plan[ej.id].series) ? h('div', { class: 'ej-nota', testid: `nota-plan-${ej.id}` }, notaEj(ej, plan[ej.id].series)) : null,
             );
           }),

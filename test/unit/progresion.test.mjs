@@ -31,6 +31,10 @@ import {
   textosSeriesDesdeSemana,
   textoDuracion,
   textoSemanaSuave,
+  limiteSubidas,
+  sesionesEsperando,
+  unaSubidaPorSesion,
+  ejerciciosConNombre,
 } from '../../src/progresion.js';
 
 // Datos inventados para las pruebas (no son de ningún plan real).
@@ -225,7 +229,9 @@ test('doble progresión: sube lo mínimo solo con el tope en TODAS las series de
   assert.equal(sinPlacas.accion, 'subir');
   assert.equal(sinPlacas.kg, 40);
   assert.equal(sinPlacas.subeUnaPlaca, true);
-  assert.match(sinPlacas.motivo, /no sé de cuánto es el salto/i);
+  assert.match(sinPlacas.motivo, /sube una placa/i);
+  // El párrafo del salto de la máquina va aparte, para no repetirlo en cada renglón de la hoja de fin.
+  assert.match(sinPlacas.notaPlaca, /no sé de cuánto es el salto/i);
   const falta = [sesion('2030-01-08', 'S1', [{ clave: 'k1', series: series(40, [9, 9, 8]) }])];
   assert.equal(sugerirPeso(ctx(ejSimple, falta)).accion, 'mantener');
   const rirBajo = [sesion('2030-01-08', 'S1', [{ clave: 'k1', series: series(40, [9, 9, 9], 0) }])];
@@ -557,4 +563,137 @@ test('si la primera serie bajó de peso en la sesión, igual cuenta para complet
   const r2 = sugerirPeso(ctx({ ...ej, series: 2 }, prueba));
   assert.equal(r2.accion, 'mantener');
   assert.match(r2.motivo, /Faltaron series/);
+});
+
+test('subirTrasSesionesOk: el peso no sube con una sola vez, sino con N sesiones seguidas cumpliéndolo todo', () => {
+  // Peso quieto con salida: sube el incremento del plan solo tras dos sesiones seguidas al tope,
+  // con el valor de dolor registrado por debajo del umbral y la respuesta posterior no mayor que antes.
+  const ej = {
+    ...ejSimple,
+    zona: 'zona1',
+    incremento: 2.5,
+    subirTrasSesionesOk: 2,
+    empeoraPorManana: true,
+    noSubirSi: ['dolorZona1Mas4'],
+  };
+  const ok = (fecha, id) => sesion(fecha, id, [{ clave: 'k1', dolor: 2, series: series(40, [9, 9, 9]) }], { dolorAntes: { zona1: 1 } });
+  const man = (fecha, valor = 1) => ({ fecha, zona: 'zona1', momento: 'manana', valor });
+
+  const una = sugerirPeso(ctx(ej, [ok('2030-01-08', 'S1')], { dolor: [man('2030-01-09')] }));
+  assert.equal(una.accion, 'mantener');
+  assert.equal(una.kg, 40);
+  assert.deepEqual(una.espera, { n: 2, ok: 1, falta: 1 });
+  assert.match(una.motivo, /2 sesiones seguidas/);
+
+  const dos = sugerirPeso(ctx(ej, [ok('2030-01-08', 'S1'), ok('2030-01-10', 'S3')], { dolor: [man('2030-01-09'), man('2030-01-11')] }));
+  assert.equal(dos.accion, 'subir');
+  assert.equal(dos.kg, 42.5);
+
+  // Falta el dato de la mañana de una de las dos: la cuenta no llega y el peso se queda.
+  const sinMan = sugerirPeso(ctx(ej, [ok('2030-01-08', 'S1'), ok('2030-01-10', 'S3')], { dolor: [man('2030-01-11')] }));
+  assert.equal(sinMan.accion, 'mantener');
+  assert.equal(sinMan.espera.ok, 1);
+
+  // Una sesión que no cumple vuelve la cuenta a cero, aunque las de antes cumplieran.
+  const corta = [ok('2030-01-08', 'S1'), sesion('2030-01-10', 'S3', [{ clave: 'k1', dolor: 2, series: series(40, [9, 9, 8]) }], { dolorAntes: { zona1: 1 } }), ok('2030-01-13', 'S1')];
+  const tras = sugerirPeso(ctx(ej, corta, { dolor: [man('2030-01-09'), man('2030-01-11'), man('2030-01-14')] }));
+  assert.equal(tras.accion, 'mantener');
+  assert.equal(tras.espera.ok, 1);
+
+  // Sin el campo, una sola sesión al tope sí sube: la puerta es opcional.
+  assert.equal(sugerirPeso(ctx({ ...ej, subirTrasSesionesOk: null }, [ok('2030-01-08', 'S1')], { dolor: [man('2030-01-09')] })).accion, 'subir');
+});
+
+test('bajarSoloSiManana: una molestia puntual acorta el recorrido pero no quita kilos', () => {
+  const ej = { ...ejSimple, zona: 'zona1', recorridos: [90, 60], recorridoSiEmpeora: 60, registraRecorrido: true, empeoraPorManana: true, bajarSoloSiManana: true };
+  const man = (fecha, valor) => ({ fecha, zona: 'zona1', momento: 'manana', valor });
+  // Primer dolor por encima del umbral: al recorrido corto, mismo peso (igual que la regla general).
+  const s1 = [sesion('2030-01-08', 'S1', [{ clave: 'k1', dolor: 6, recorrido: 90, series: series(40, [9, 9, 9]) }], { dolorAntes: { zona1: 1 } })];
+  assert.equal(sugerirPeso(ctx(ej, s1, { dolor: [man('2030-01-09', 1)] })).recorrido, 60);
+  // Ya en el recorrido corto y vuelve la molestia puntual: con la regla general bajaría; aquí repite el peso.
+  const s2 = [sesion('2030-01-08', 'S1', [{ clave: 'k1', dolor: 6, recorrido: 60, series: series(40, [9, 9, 9]) }], { dolorAntes: { zona1: 1 } })];
+  const r = sugerirPeso(ctx(ej, s2, { dolor: [man('2030-01-09', 1)] }));
+  assert.equal(r.accion, 'mantener');
+  assert.equal(r.kg, 40);
+  assert.match(r.motivo, /los kilos bajan solo si la mañana siguiente queda peor/);
+  // Sin el campo, el mismo caso sí baja el peso.
+  assert.equal(sugerirPeso(ctx({ ...ej, bajarSoloSiManana: false }, s2, { dolor: [man('2030-01-09', 1)] })).accion, 'bajar');
+  // Amaneció peor: ahí sí baja.
+  const s3 = [sesion('2030-01-08', 'S1', [{ clave: 'k1', dolor: 2, recorrido: 60, series: series(40, [9, 9, 9]) }], { dolorAntes: { zona1: 1 } })];
+  const peor = sugerirPeso(ctx(ej, s3, { dolor: [man('2030-01-09', 3)] }));
+  assert.equal(peor.accion, 'bajar');
+  assert.ok(peor.kg < 40);
+});
+
+test('tope de subidas por sesión: el turno es del que más tiempo lleva sin subir', () => {
+  const rut = { ...rutina, subidasPorSesion: 1 };
+  assert.equal(limiteSubidas(rut), 1);
+  assert.equal(limiteSubidas(rutina), null);
+  const a = { ...ejSimple, id: 'a', clave: 'ka', nombre: 'Ejercicio A' };
+  const b = { ...ejSimple, id: 'b', clave: 'kb', nombre: 'Ejercicio B' };
+  // A lleva dos sesiones con el mismo peso; B subió en la última, así que espera menos.
+  const ses = [
+    sesion('2030-01-08', 'S1', [{ clave: 'ka', series: series(40, [9, 9, 9]) }, { clave: 'kb', series: series(30, [9, 9, 9]) }]),
+    sesion('2030-01-10', 'S3', [{ clave: 'ka', series: series(40, [9, 9, 9]) }, { clave: 'kb', series: series(35, [9, 9, 9]) }]),
+  ];
+  assert.equal(sesionesEsperando({ rutina: rut, ej: a, sesiones: ses, gimnasio: 'G1' }), 2);
+  assert.equal(sesionesEsperando({ rutina: rut, ej: b, sesiones: ses, gimnasio: 'G1' }), 0);
+  const lista = [a, b].map((ej) => ({ ej, sug: sugerirPeso({ ...ctx(ej, ses), rutina: rut }) }));
+  assert.deepEqual(lista.map((x) => x.sug.accion), ['subir', 'subir']);
+  const conRegla = unaSubidaPorSesion({ rutina: rut, sesiones: ses, gimnasio: 'G1', lista });
+  assert.deepEqual(conRegla.map((x) => x.sug.accion), ['subir', 'mantener']);
+  // El que cede repite el peso que ya hacía y dice a quién le toca.
+  assert.equal(conRegla[1].sug.kg, 35);
+  assert.equal(conRegla[1].sug.cedeA, 'Ejercicio A');
+  assert.match(conRegla[1].sug.motivo, /el turno de subir es de Ejercicio A/);
+  // Sin el límite en la rutina, no se toca nada.
+  assert.deepEqual(unaSubidaPorSesion({ rutina, sesiones: ses, gimnasio: 'G1', lista }).map((x) => x.sug.accion), ['subir', 'subir']);
+});
+
+test('los textos del ajuste de sesión solo salen con el peso al que ese ajuste se aplica', () => {
+  const ej = {
+    ...ejSimple,
+    pesoInicial: 80,
+    ajusteSesion: [
+      { si: 'sobranMas3', accion: 'fijar', kg: 100, siKg: 80 },
+      { si: 'primeraNoLlegaMin', accion: 'fijar', kg: 70 },
+      { si: 'sobranMas3', accion: 'sumar', kg: 10 },
+    ],
+  };
+  // Sin peso: todos (la rutina completa, donde no hay un peso de hoy).
+  assert.equal(textosAjusteSesion(ej).length, 3);
+  // Con el peso de partida y siendo la primera vez: los tres se pueden aplicar.
+  assert.equal(textosAjusteSesion(ej, 80, true).length, 3);
+  // Ya no es la primera vez: el de "sumar" no aplica.
+  assert.deepEqual(textosAjusteSesion(ej, 80, false), ['Si te sobran más de 3: 100 kg.', 'Si la primera no llega a 6: 70 kg.']);
+  // Con otro peso, los de "fijar" tampoco: no se imprime una regla que no va a pasar.
+  assert.deepEqual(textosAjusteSesion(ej, 95, false), []);
+});
+
+test('lista de ejercicios: el nombre repetido en dos claves distintas dice de qué sesión es cada uno', () => {
+  const rut = {
+    sesiones: [
+      {
+        id: 'S1',
+        nombre: 'Sesión uno',
+        bloques: [{ ejercicios: [{ clave: 'laterales-1', nombre: 'Elevaciones laterales' }, { clave: 'sentadilla', nombre: 'Sentadilla' }] }],
+      },
+      { id: 'S2', nombre: 'Sesión dos', bloques: [{ ejercicios: [{ clave: 'laterales-2', nombre: 'Elevaciones laterales' }] }] },
+    ],
+  };
+  const m = ejerciciosConNombre(rut, []);
+  // El nombre está en dos claves distintas: cada uno dice su sesión.
+  assert.deepEqual(m.get('laterales-1'), { nombre: 'Elevaciones laterales', sub: 'Sesión uno' });
+  assert.deepEqual(m.get('laterales-2'), { nombre: 'Elevaciones laterales', sub: 'Sesión dos' });
+  // El que no se repite queda limpio.
+  assert.deepEqual(m.get('sentadilla'), { nombre: 'Sentadilla', sub: null });
+  // El mismo ejercicio en dos sesiones es una sola clave: tampoco hace falta aclarar nada.
+  const unaClave = ejerciciosConNombre(
+    { sesiones: [{ nombre: 'A', bloques: [{ ejercicios: [{ clave: 'k', nombre: 'Remo en máquina' }] }] }, { nombre: 'B', bloques: [{ ejercicios: [{ clave: 'k', nombre: 'Remo en máquina' }] }] }] },
+    [],
+  );
+  assert.deepEqual(unaClave.get('k'), { nombre: 'Remo en máquina', sub: null });
+  // Un ejercicio que solo está en el historial (ya no está en la rutina) también sale.
+  const viejo = ejerciciosConNombre(rut, [{ ejercicios: [{ clave: 'viejo', nombre: 'Ejercicio de antes' }] }]);
+  assert.deepEqual(viejo.get('viejo'), { nombre: 'Ejercicio de antes', sub: null });
 });

@@ -161,6 +161,7 @@ Una combinación que se registra con un toque, escalable (½, 1, 1½).
   "minutosRecorte": 75,
   "vecesRecorte": 2,
   "descansoEntreBloquesSeg": 90,
+  "subidasPorSesion": 1,
   "reglas": ["texto"],
   "palabras": [ { "palabra": "texto", "significa": "texto" } ],
   "sesiones": [
@@ -181,7 +182,8 @@ Una combinación que se registra con un toque, escalable (½, 1, 1½).
               "pesoRegreso": 70, "pesoRegresoDesde": 80, "incremento": null, "volverAlAnterior": false,
               "pesoInicialDe": null, "pesoReferencia": null,
               "zona": "zona1|zona2|null", "registraRecorrido": false, "recorridos": [100, 80],
-              "recorridoSiEmpeora": null, "empeoraPorManana": false,
+              "recorridoSiEmpeora": null, "empeoraPorManana": false, "bajarSoloSiManana": false,
+              "subirTrasSesionesOk": null,
               "seriesDesdeSemana": [ { "semana": 2, "series": 3, "condicion": "zona2-ok-2-sesiones", "texto": "texto" } ],
               "ajusteSesion": [ { "si": "sobranMas3|noLlegaMin|primeraNoLlegaMin", "accion": "sumar|restar|fijar", "kg": 5, "siKg": 80 } ],
               "noSubirSi": ["eventoZona1DesdeUltimaSesion", "dolorZona1Mas4"],
@@ -213,6 +215,9 @@ Una combinación que se registra con un toque, escalable (½, 1, 1½).
 - `pesoInicialDe`: clave de otro ejercicio cuyo último peso de trabajo es el peso de partida.
 - `pesoReferencia`: sin peso de partida, la app sugiere la placa conocida siguiente a ese peso; + y − parten de él.
 - `noSubirSi`: `evento{Zona}DesdeUltimaSesion` (un registro de dolor fuera del gimnasio, con dolor o sin número, desde la última sesión) y `dolor{Zona}Mas{N}` (dolor de más de N en el ejercicio o en la mañana siguiente; si falta el dato de la mañana, no sube).
+- `subirTrasSesionesOk: N` (2 o más): el peso **no se mueve con una sola sesión**. Se exigen las N sesiones consecutivas más recientes de ese ejercicio con todo en orden: cada serie prevista al máximo de su rango y al RIR pedido, el valor de dolor de la zona registrado ese mismo día y ≤ `umbralDolor` y —solo con `empeoraPorManana`— un registro de la mañana posterior que exista y no supere `dolorAntes`. Cualquier sesión que falle reinicia el conteo. Mientras falte alguna, la acción es `mantener` y la sugerencia trae `espera: { n, ok, falta }` para poder decir cuántas van. Así un peso puede quedarse quieto con una condición de salida medible, en vez de quedar fijo sin salida.
+- `bajarSoloSiManana: true`: en ese ejercicio, un valor sobre `umbralDolor` **solo recorta el recorrido**; reducir kilos queda reservado al caso en que el registro de la mañana posterior supere `dolorAntes`. Sin el campo rige lo general (recorrido y, al repetirse, −5 a 10 %).
+- `subidasPorSesion` (de la rutina): tope de ejercicios que pueden ganar kilos en una misma sesión. Con `1`, entre los que dan `subir` gana el de mayor `sesionesEsperando` (empate: el orden en que van en la sesión); a los demás se les cambia la acción a `mantener`, conservando los kilos que ya traían, con `cedeA` indicando quién se lleva el turno. Permite saber cuál fue el cambio cuando algo molesta después. Sin el campo, sin tope.
 
 ## registros
 
@@ -237,7 +242,8 @@ Una combinación que se registra con un toque, escalable (½, 1, 1½).
                         "dolor": null, "recorrido": null, "alarmas": [], "nota": "" } ],
       "soloLectura": false, "notas": "" }
   ],
-  "dolor": [ { "fecha", "hora", "zona", "momento": "manana|noche|antes|evento", "valor", "durmioSobre": null, "duracionMin": null, "actividad": "" } ],
+  "dolor": [ { "fecha", "hora", "zona", "momento": "manana|noche|antes|evento", "valor", "durmioSobre": null, "duracionMin": null, "actividad": "",
+               "haceCuanto": null, "parte": null, "queLoQuito": null, "alApretar": false, "hormigueo": false, "horasDesdeEntreno": null } ],
   "pesos": [ { "fecha", "kg", "tipo": "casa|bio", "nota": "" } ],
   "medidas": [ { "fecha", "cintura", "cadera", "musloD", "musloI", "brazoDRel", "brazoIRel", "brazoDFuerza", "brazoIFuerza" } ],
   "cintura": [ { "fecha", "cm" } ],
@@ -251,5 +257,6 @@ Una combinación que se registra con un toque, escalable (½, 1, 1½).
 - `historialDias`: totales de días anteriores a la app (solo para promedios).
 - Las sesiones importadas del bloque anterior van con `soloLectura: true`: no entran a las sugerencias de peso, pero sus pesos sí enseñan las placas reales de cada máquina.
 - Una sesión cargada a mano (contada por la persona, no registrada en la app) va sin `soloLectura` para que cuente, con `inicio: null` y `fin` con solo la fecha (`"AAAA-MM-DD"`): así cuenta como terminada y la duración queda sin dato. Lo que no se sabe va vacío (`reps: null`, `dolor: null`, `seriesPlan: null`) y nunca inventado; con `seriesPlan: null` la app no sube el peso y dice que faltan datos de esa sesión. Un ejercicio que no se reportó va con `series: []` y una nota.
+- `dolor` con `momento: "evento"` (lo registrado fuera del gimnasio) admite todos los campos que un plan puede exigir por aparición: `valor` 0–10, `duracionMin`, `actividad`, `haceCuanto` (desde cuándo venía esa actividad), `parte` (ubicación dentro de la zona), `queLoQuito` (qué lo hizo ceder), `alApretar` (si la presión reproduce la molestia en ese instante) y `hormigueo`. `horasDesdeEntreno` lo calcula la app sola: horas entre el `fin` de la última sesión de los tipos que lista `zonas[z].sesiones` y el instante del registro; `null` si no hay ninguna previa. La ayuda de la hoja sale de `textos.evento{Zona}`.
 - `dias.*.resumen.cerrado`: el día se cerró. El día de hoy entra a los promedios de la semana solo cuando se cierra.
 - Los respaldos de antes de restaurar una copia quedan dentro de la app (hasta 5) y se pueden deshacer durante una semana.

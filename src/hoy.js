@@ -170,14 +170,18 @@ export function render(cont) {
   const dc = diasDesdeCopia();
   const activa = sesionActiva();
   const sig = S.rutina ? siguienteSesion(S.rutina, S.reg.sesiones) : null;
+  // Ya entrenó hoy: el botón lo dice, sin tener que entrar a Entreno para saberlo.
+  const entrenoHecho = !activa && S.reg.sesiones.some((s) => s.fin && !s.soloLectura && s.fecha === fecha);
   const nomSig = (S.rutina?.sesiones || []).find((s) => s.id === sig)?.nombre;
   const avisos = calcularAvisos(fecha, new Date());
+  // La tarjeta roja de copia ya avisa: la franja de arriba no se pinta de rojo también.
+  const avisoCopia = avisos.some((a) => a.tipo === 'copia');
   const pesoResaltado = resaltarPeso(fecha);
   montar(
     cont,
     h(
       'div',
-      { class: `copia-linea ${dc == null || dc > 7 ? 'vieja' : ''}`, testid: 'ultima-copia' },
+      { class: `copia-linea ${!avisoCopia && (dc == null || dc > 7) ? 'vieja' : ''}`, testid: 'ultima-copia' },
       h('span', {}, dc == null ? 'Última copia: nunca' : dc === 0 ? 'Última copia: hoy' : `Última copia: hace ${dc} ${dc === 1 ? 'día' : 'días'}`),
       h('button', { class: 'btn-texto', type: 'button', testid: 'hacer-copia', onclick: () => exportarCopia() }, 'Hacer copia'),
     ),
@@ -203,13 +207,13 @@ export function render(cont) {
       { class: 'rejilla-btns mb', testid: 'botones-hoy' },
       h('button', { class: `btn btn-grande ${pesoResaltado ? 'btn-resaltado' : 'btn-sec'}`, type: 'button', testid: 'btn-peso', onclick: () => abrirPeso() }, pesoResaltado ? '⚖️ Peso (hoy toca)' : '⚖️ Peso'),
       !(d?.comidas || []).length
-        ? h('button', { class: 'btn btn-sec btn-grande', type: 'button', testid: 'btn-planear', onclick: () => planearDia(fecha) }, '📋 Planear el día')
+        ? h('button', { class: 'btn btn-sec btn-grande', type: 'button', testid: 'btn-planear', onclick: () => planearDia(fecha) }, '📋 Planear')
         : h('button', { class: 'btn btn-sec btn-grande', type: 'button', testid: 'btn-ver-comida', onclick: () => ir('comida') }, '🍽️ Ver el día'),
       h(
         'button',
         { class: `btn btn-sec btn-grande${activa || nomSig ? ' btn-dos' : ''}`, type: 'button', testid: 'btn-entrenar', onclick: () => ir('entreno') },
-        h('span', {}, activa ? 'Volver a la sesión' : 'Entrenar'),
-        activa || nomSig ? h('span', { class: 'btn-sub' }, activa ? activa.nombre : nomSig) : null,
+        h('span', {}, activa ? 'Volver a la sesión' : entrenoHecho ? 'Ya entrenaste hoy' : 'Entrenar'),
+        activa || nomSig ? h('span', { class: 'btn-sub' }, activa ? activa.nombre : entrenoHecho ? `La próxima: ${nomSig}` : nomSig) : null,
       ),
       h('button', { class: 'btn btn-sec btn-grande', type: 'button', testid: 'btn-cerrar', onclick: () => abrirCerrarDia(fecha) }, '✅ Cerrar el día'),
     ),

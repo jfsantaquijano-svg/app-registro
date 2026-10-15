@@ -345,6 +345,11 @@ function datosEjercicio(sesion, clave) {
   return (sesion.ejercicios || []).find((e) => e.clave === clave) || null;
 }
 
+/** ¿Esta anotación del ejercicio sirve para decidir el peso de la próxima vez? */
+function decideElPeso(e) {
+  return !!e && !!e.series?.length;
+}
+
 /** Series que deciden: las normales (sin ⚡) y, a un lado, solo las del lado que decide. */
 export function seriesQueDeciden(e, lado = LADOS[0]) {
   return (e?.series || []).filter((s) => !s.fallo && (s.lado == null || s.lado === lado));
@@ -380,6 +385,65 @@ function normalesDelPlan(e, ej) {
   return Math.max(1, series - (fallo ? 1 : 0));
 }
 
+/**
+ * ¿Esa sesión llegó al tope en todas las series normales que pedía el plan, al RIR indicado?
+ * Es el mismo cálculo que decide una subida, puesto aparte para poder mirar varias sesiones seguidas.
+ */
+function topeEnSesion(e, ej, lado) {
+  const kg = kgDeTrabajo(e, lado);
+  if (kg == null) return { kg: null, topeOK: false, alTope: false, completas: false, normales: [], hechas: 0 };
+  const rmin = rirMin(ej.rir) ?? 0;
+  const normales = seriesAlPeso(e, kg, lado);
+  // Para completar las series del plan valen las hechas con el peso de trabajo o uno mayor (la primera que bajó en la sesión, también).
+  const hechas = seriesQueDeciden(e, lado).filter((s) => Number(s.kg) >= kg - 1e-9).length;
+  const completas = hechas >= normalesDelPlan(e, ej);
+  const alTope = normales.length > 0 && normales.every((s) => s.reps != null && s.reps >= ej.repMax && (s.rir == null || s.rir >= rmin));
+  return { kg, topeOK: completas && alTope, alTope, completas, normales, hechas };
+}
+
+/**
+ * ¿Esa sesión cumplió TODO lo que el plan pide para subir el peso de este ejercicio?
+ * Tope en todas las series normales · valor de dolor de la zona registrado ese día y por debajo del umbral ·
+ * respuesta de la mañana posterior registrada y no mayor que antes de empezar.
+ */
+function sesionCumpleParaSubir(ctx, sesion, ej, lado) {
+  const { ajustes, dolor } = ctx;
+  if (!sesion || sesion.suave) return false;
+  const e = datosEjercicio(sesion, ej.clave);
+  if (!decideElPeso(e)) return false;
+  if (!topeEnSesion(e, ej, lado).topeOK) return false;
+  const umbral = umbralDolor(ajustes);
+  if (ej.zona && umbral != null) {
+    if (e.dolor == null || e.dolor > umbral) return false;
+    if (ej.empeoraPorManana) {
+      const man = dolorManana(dolor, ej.zona, fechaSesion(sesion));
+      if (!man || !dolorMananaCuenta(ajustes, ej.zona, man) || man.valor > umbral) return false;
+      const antes = sesion.dolorAntes?.[ej.zona];
+      if (antes != null && man.valor > antes) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Puerta de `subirTrasSesionesOk`: hay ejercicios donde el plan pide repetir el resultado varias veces
+ * seguidas antes de tocar el peso. Devuelve { n, ok, falta } o null si el ejercicio no tiene puerta.
+ * Solo cuenta las sesiones seguidas más recientes: una que no cumpla vuelve la cuenta a cero.
+ */
+export function puertaSesionesOk(ctx) {
+  const { rutina, ej, sesiones, gimnasio } = ctx;
+  const n = Number(ej?.subirTrasSesionesOk);
+  if (!Number.isFinite(n) || n < 2) return null;
+  const lado = ladoQueDecide(rutina, ej);
+  const hist = sesionesValidas(sesiones).filter((s) => (!gimnasio || s.gimnasio === gimnasio) && decideElPeso(datosEjercicio(s, ej.clave)));
+  let ok = 0;
+  for (let i = hist.length - 1; i >= 0 && ok < n; i--) {
+    if (!sesionCumpleParaSubir(ctx, hist[i], ej, lado)) break;
+    ok++;
+  }
+  return { n, ok, falta: Math.max(0, n - ok) };
+}
+
 function parsearCondicion(c) {
   let m = String(c).match(/^evento(Zona\d+)DesdeUltimaSesion$/i);
   if (m) return { tipo: 'evento', zona: m[1].toLowerCase() };
@@ -403,6 +467,8 @@ function momentosEvento(ajustes, zona) {
  * ¿La zona quedó peor en esa sesión? (zonas con `siEmpeora` en el archivo)
  * Peor = dolor por encima del umbral mientras hacía ese ejercicio; y, solo donde el archivo pone
  * `empeoraPorManana`, también si la mañana siguiente quedó peor que antes de empezar.
+ * Devuelve { texto, porManana } o null. `porManana` dice si lo que empeoró fue la mañana siguiente:
+ * los ejercicios con `bajarSoloSiManana` solo bajan de peso en ese caso.
  */
 function zonaEmpeoro(ctx, sesion, e, ej) {
   const { ajustes, dolor } = ctx;
@@ -410,15 +476,17 @@ function zonaEmpeoro(ctx, sesion, e, ej) {
   if (!ej.zona || !z?.siEmpeora || !e) return null;
   const umbral = umbralDolor(ajustes);
   const motivos = [];
+  let porManana = false;
   if (umbral != null && e.dolor != null && e.dolor > umbral) motivos.push(`dolor de ${e.dolor} durante el ejercicio`);
   if (ej.empeoraPorManana) {
     const man = dolorManana(dolor, ej.zona, fechaSesion(sesion));
     const antes = sesion.dolorAntes?.[ej.zona];
     if (man && dolorMananaCuenta(ajustes, ej.zona, man) && antes != null && man.valor > antes) {
       motivos.push(`al día siguiente amaneció en ${man.valor} (antes de entrenar estaba en ${antes})`);
+      porManana = true;
     }
   }
-  return motivos.length ? motivos.join(' y ') : null;
+  return motivos.length ? { texto: motivos.join(' y '), porManana } : null;
 }
 
 /** Recorrido menor que sigue en la lista del ejercicio (ej. 90 → 75). null si ya está en el menor. */
@@ -476,12 +544,12 @@ function pesoSinHistorial(ctx, conocidos) {
 export function sugerirPeso(ctx) {
   const { rutina, ej, sesiones, dolor, ajustes, gimnasio, hoy, alEmpezar = false } = ctx;
   const lado = ladoQueDecide(rutina, ej);
-  const hist = sesionesValidas(sesiones).filter((s) => (!gimnasio || s.gimnasio === gimnasio) && datosEjercicio(s, ej.clave)?.series?.length);
+  const hist = sesionesValidas(sesiones).filter((s) => (!gimnasio || s.gimnasio === gimnasio) && decideElPeso(datosEjercicio(s, ej.clave)));
   // Los pesos que existen: los de esa máquina y los de las demás claves del mismo equipo (mancuernas, barras).
   const conocidos = pesosMaquina(sesiones, clavesMismoEquipo(rutina, ej.clave), gimnasio);
   const referencia = ej.pesoReferencia != null ? Number(ej.pesoReferencia) : null;
   if (!hist.length) {
-    const otroGym = sesionesValidas(sesiones).some((s) => datosEjercicio(s, ej.clave)?.series?.length);
+    const otroGym = sesionesValidas(sesiones).some((s) => decideElPeso(datosEjercicio(s, ej.clave)));
     const p = pesoSinHistorial(ctx, conocidos);
     if (!p) return { kg: null, accion: 'buscar', motivo: ej.pesoTexto || 'Peso por encontrar', provisional: false, conocidos, referencia };
     return { kg: p.kg, accion: 'inicial', motivo: otroGym ? 'Primera vez en este gimnasio: peso de partida' : p.motivo, porConfirmar: !!p.porConfirmar, provisional: false, conocidos, referencia };
@@ -507,11 +575,16 @@ export function sugerirPeso(ctx) {
   const empeoro = zonaEmpeoro(ctx, ultima, e, ej);
   if (empeoro) {
     const ep = previa ? datosEjercicio(previa, ej.clave) : null;
-    const siguio = !!ep && !previa.suave && !!zonaEmpeoro(ctx, previa, ep, ej);
+    const antes = ep && !previa.suave ? zonaEmpeoro(ctx, previa, ep, ej) : null;
+    const siguio = !!antes;
     const tieneRecorridos = (ej.recorridos || []).length > 0;
     const menor = tieneRecorridos ? recorridoSiEmpeora(ej, recorridoActual) : null;
     if (menor != null) {
-      return { ...base, recorrido: menor, accion: 'mantener', motivo: `${mayuscula(empeoro)}: la próxima vez hasta ${menor}°, mismo peso`, provisional: false };
+      return { ...base, recorrido: menor, accion: 'mantener', motivo: `${mayuscula(empeoro.texto)}: la próxima vez hasta ${menor}°, mismo peso`, provisional: false };
+    }
+    // Ejercicios donde quitar kilos queda reservado a que la mañana posterior quede peor (no a una molestia puntual).
+    if (ej.bajarSoloSiManana && !empeoro.porManana && !(siguio && antes.porManana)) {
+      return { ...base, ...conRecorrido(), accion: 'mantener', motivo: `${mayuscula(empeoro.texto)}: repite el peso. Aquí los kilos bajan solo si la mañana siguiente queda peor`, provisional: false };
     }
     if (siguio || tieneRecorridos) {
       return {
@@ -520,21 +593,15 @@ export function sugerirPeso(ctx) {
         kg: pesoBajado(kg, conocidos),
         anterior: kg,
         accion: 'bajar',
-        motivo: `${mayuscula(empeoro)}${tieneRecorridos ? ', ya con el recorrido corto' : ' otra vez'}: baja 5–10 %`,
+        motivo: `${mayuscula(empeoro.texto)}${tieneRecorridos ? ', ya con el recorrido corto' : ' otra vez'}: baja 5–10 %`,
         provisional: false,
       };
     }
-    return { ...base, accion: 'mantener', motivo: `${mayuscula(empeoro)}: no sube. Si vuelve a pasar, baja el peso`, provisional: false };
+    return { ...base, accion: 'mantener', motivo: `${mayuscula(empeoro.texto)}: no sube. Si vuelve a pasar, baja el peso`, provisional: false };
   }
 
   const consejo = ej.zona ? ajustes?.zonas?.[ej.zona]?.consejoSiPasaUmbral || null : null;
-  const rmin = rirMin(ej.rir) ?? 0;
-  const normales = seriesAlPeso(e, kg, lado);
-  // Para completar las series del plan valen las hechas con el peso de trabajo o uno mayor (la primera que bajó en la sesión, también).
-  const hechas = seriesQueDeciden(e, lado).filter((s) => Number(s.kg) >= kg - 1e-9).length;
-  const completas = hechas >= normalesDelPlan(e, ej);
-  const alTope = normales.length > 0 && normales.every((s) => s.reps != null && s.reps >= ej.repMax && (s.rir == null || s.rir >= rmin));
-  const topeOK = completas && alTope;
+  const { normales, hechas, completas, alTope, topeOK } = topeEnSesion(e, ej, lado);
   const rayo = (e.series || []).find((s) => s.fallo && (s.lado == null || s.lado === lado));
   const rayoOK = !!rayo && Number(rayo.kg) >= kg - 1e-9 && rayo.reps != null && rayo.reps >= ej.repMax + 3;
 
@@ -575,6 +642,18 @@ export function sugerirPeso(ctx) {
         provisional: false,
       };
     }
+    // Puerta de varias sesiones seguidas: el plan pide repetir el resultado antes de tocar el peso.
+    const puerta = puertaSesionesOk(ctx);
+    if (puerta && puerta.falta > 0) {
+      return {
+        ...base,
+        ...conRecorrido(),
+        accion: 'mantener',
+        espera: puerta,
+        motivo: `${porque}, pero todavía no toca subir: el plan pide ${puerta.n} sesiones seguidas así y llevas ${puerta.ok}. Repite el peso`,
+        provisional: false,
+      };
+    }
     // Si en esa misma sesión intentó un peso más alto y no llegó al mínimo, la próxima vez vuelve a ese.
     const fallidosArriba = seriesQueDeciden(e, lado)
       .filter((x) => noLlegoAlMinimo(ej, x) && Number(x.kg) > kg + 1e-9)
@@ -594,7 +673,8 @@ export function sugerirPeso(ctx) {
         accion: 'subir',
         subeUnaPlaca: true,
         porConfirmar: true,
-        motivo: `${porque}: sube una placa. No sé de cuánto es el salto de esta máquina: míralo y ajústalo con + y −`,
+        motivo: `${porque}: sube una placa`,
+        notaPlaca: 'No sé de cuánto es el salto de esta máquina: míralo y ajústalo con + y −',
         provisional,
       };
     }
@@ -659,6 +739,88 @@ function textoEvento(ajustes, zona) {
 }
 
 /** Duración en minutos de una sesión. */
+/** Tope de ejercicios que pueden ganar kilos en una misma sesión (`rutina.subidasPorSesion`). null = sin tope. */
+export function limiteSubidas(rutina) {
+  const n = Number(rutina?.subidasPorSesion);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Sesiones que este ejercicio lleva sin ganar kilos. Sirve para darle el turno al que más espera.
+ * Sin historial, o si nunca ha subido, cuenta todas las sesiones que lleva.
+ */
+export function sesionesEsperando({ rutina, ej, sesiones, gimnasio }) {
+  const lado = ladoQueDecide(rutina, ej);
+  const kgs = sesionesValidas(sesiones)
+    .filter((s) => (!gimnasio || s.gimnasio === gimnasio) && decideElPeso(datosEjercicio(s, ej.clave)))
+    .map((s) => kgDeTrabajo(datosEjercicio(s, ej.clave), lado));
+  if (!kgs.length) return 0;
+  let ultimaSubida = -1;
+  for (let i = 1; i < kgs.length; i++) {
+    if (kgs[i] != null && kgs[i - 1] != null && kgs[i] > kgs[i - 1] + 1e-9) ultimaSubida = i;
+  }
+  return kgs.length - 1 - ultimaSubida;
+}
+
+/**
+ * Límite de subidas en una misma sesión: elige quién se lleva el turno y deja a los demás repitiendo el peso.
+ * El turno es del que más tiempo lleva sin subir; si empatan, el orden en que van en la sesión.
+ * `lista`: [{ ej, sug }] en el orden del plan. Devuelve una lista nueva, con las sugerencias ya ajustadas.
+ */
+export function unaSubidaPorSesion({ rutina, sesiones, gimnasio, lista }) {
+  const limite = limiteSubidas(rutina);
+  if (!limite || !Array.isArray(lista)) return lista;
+  const suben = lista.map((x, i) => ({ x, i })).filter(({ x }) => x?.sug?.accion === 'subir');
+  if (suben.length <= limite) return lista;
+  const espera = new Map(suben.map(({ x, i }) => [i, sesionesEsperando({ rutina, ej: x.ej, sesiones, gimnasio })]));
+  const orden = [...suben].sort((a, b) => espera.get(b.i) - espera.get(a.i) || a.i - b.i);
+  const turno = orden.slice(0, limite);
+  const elegidos = new Set(turno.map((o) => o.i));
+  const nombres = turno.map((o) => o.x.ej.nombre).join(' y ');
+  return lista.map((x, i) => {
+    if (elegidos.has(i) || x?.sug?.accion !== 'subir') return x;
+    const sug = { ...x.sug };
+    sug.kg = sug.anterior ?? sug.kg;
+    delete sug.anterior;
+    delete sug.notaPlaca;
+    sug.accion = 'mantener';
+    sug.subeUnaPlaca = false;
+    sug.porConfirmar = false;
+    sug.cedeA = nombres;
+    sug.motivo = `Llegaste al tope, pero esta vez el turno de subir es de ${nombres}: repite el peso`;
+    return { ...x, sug };
+  });
+}
+
+/**
+ * Ejercicios que pueden tener historial, con su nombre y, cuando el mismo nombre está en dos claves
+ * distintas, la sesión donde va cada uno: si no, en la lista salen dos renglones iguales y no se sabe cuál abrir.
+ * Devuelve un Map de clave a { nombre, sub }, donde `sub` es null cuando el nombre no se repite.
+ */
+export function ejerciciosConNombre(rutina, sesiones) {
+  const out = new Map();
+  const clavesPorNombre = new Map();
+  for (const s of rutina?.sesiones || []) {
+    for (const b of s.bloques || []) {
+      for (const ej of b.ejercicios || []) {
+        if (!out.has(ej.clave)) out.set(ej.clave, { nombre: ej.nombre, sesiones: [] });
+        const v = out.get(ej.clave);
+        if (s.nombre && !v.sesiones.includes(s.nombre)) v.sesiones.push(s.nombre);
+        if (!clavesPorNombre.has(ej.nombre)) clavesPorNombre.set(ej.nombre, new Set());
+        clavesPorNombre.get(ej.nombre).add(ej.clave);
+      }
+    }
+  }
+  for (const s of sesiones || []) {
+    for (const e of s.ejercicios || []) if (!out.has(e.clave)) out.set(e.clave, { nombre: e.nombre, sesiones: [] });
+  }
+  for (const [clave, v] of out) {
+    const repetido = (clavesPorNombre.get(v.nombre)?.size || 0) > 1;
+    out.set(clave, { nombre: v.nombre, sub: repetido && v.sesiones.length ? v.sesiones.join(' y ') : null });
+  }
+  return out;
+}
+
 export function duracionMin(s) {
   if (!s?.inicio || !s?.fin) return null;
   return Math.round((new Date(s.fin) - new Date(s.inicio)) / 60000);
@@ -673,15 +835,26 @@ export function tocaRecorte(sesiones, sesionId, regla) {
 // ---------- Textos del plan (armados con los datos, sin frases propias en el código) ----------
 
 /** Qué cambia dentro de la sesión, en palabras: "Si te sobran más de 3: 200 kg." */
-export function textosAjusteSesion(ej) {
-  return (ej?.ajusteSesion || []).map((a) => {
+export function textosAjusteSesion(ej, kgHoy = null, primeraVez = null) {
+  return (ej?.ajusteSesion || [])
+    .filter((a) => {
+      if (kgHoy == null) return true;
+      // `fijar` solo se aplica desde un peso exacto: con otro peso el texto sobra y confunde.
+      if (a.accion === 'fijar') {
+        const desde = a.siKg ?? ej.pesoInicial;
+        return desde != null && iguales(Number(kgHoy), Number(desde));
+      }
+      // `sumar` y `restar` solo valen la primera vez de ese ejercicio en ese gimnasio.
+      return primeraVez == null || !!primeraVez;
+    })
+    .map((a) => {
     const cond = a.si === 'sobranMas3' ? 'Si te sobran más de 3' : a.si === 'primeraNoLlegaMin' ? `Si la primera no llega a ${ej.repMin}` : `Si no llegas a ${ej.repMin}`;
     let dest;
     if (a.accion === 'fijar') dest = `${a.kg} kg`;
     else if (a.kg != null) dest = `${a.accion === 'sumar' ? '+' : '−'}${a.kg} kg`;
     else dest = a.accion === 'sumar' ? 'una placa más' : 'una placa menos';
-    return `${cond}: ${dest}.`;
-  });
+      return `${cond}: ${dest}.`;
+    });
 }
 
 /** Series que cambian desde una semana: "3 series desde la semana 3 (si la zona viene bien)." */
