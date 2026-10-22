@@ -314,6 +314,10 @@ test('zonas: solo sube con dolor ≤ umbral en el ejercicio y en la mañana sigu
   assert.equal(sugerirPeso(ctx(ej, ses(4), { dolor: manana(4) })).accion, 'subir');
   assert.equal(sugerirPeso(ctx(ej, ses(5), { dolor: manana(1) })).accion, 'mantener');
   assert.equal(sugerirPeso(ctx(ej, ses(2), { dolor: manana(5) })).accion, 'mantener');
+  // Sin número de la zona en esa sesión: no sube aunque la mañana esté bien
+  const sinDolor = sugerirPeso(ctx(ej, ses(null), { dolor: manana(0) }));
+  assert.equal(sinDolor.accion, 'mantener');
+  assert.match(sinDolor.motivo, /falta el dolor de ese día/);
   // Falta el dato del día siguiente: al empezar la próxima sesión, no sube
   const sinDato = sugerirPeso(ctx(ej, ses(2), { dolor: [] }));
   assert.equal(sinDato.accion, 'mantener');

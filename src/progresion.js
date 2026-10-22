@@ -621,7 +621,10 @@ export function sugerirPeso(ctx) {
         const hay = (dolor || []).some((d) => d.zona === p.zona && momentos.includes(d.momento) && d.fecha >= ultima.fecha && eventoCuenta(d));
         if (hay) bloqueos.push(textoEvento(ajustes, p.zona));
       } else if (p.tipo === 'dolor') {
-        if (e.dolor != null && e.dolor > p.limite && !bloqueos.some((b) => b.startsWith('dolor de'))) bloqueos.push(`dolor de ${e.dolor} durante el ejercicio`);
+        const faltaDolor = 'falta el dolor de ese día durante el ejercicio';
+        if (e.dolor == null) {
+          if (!bloqueos.includes(faltaDolor)) bloqueos.push(faltaDolor);
+        } else if (e.dolor > p.limite && !bloqueos.some((b) => b.startsWith('dolor de'))) bloqueos.push(`dolor de ${e.dolor} durante el ejercicio`);
         const reg = dolorManana(dolor, p.zona, ultima.fecha);
         if (!reg) {
           const yaPaso = hoy > sumarDias(ultima.fecha, 1);
