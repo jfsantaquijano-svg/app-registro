@@ -32,6 +32,7 @@ import {
   textoDuracion,
   textoSemanaSuave,
   limiteSubidas,
+  puertaSesionesOk,
   sesionesEsperando,
   unaSubidaPorSesion,
   ejerciciosConNombre,
@@ -627,6 +628,40 @@ test('bajarSoloSiManana: una molestia puntual acorta el recorrido pero no quita 
   const peor = sugerirPeso(ctx(ej, s3, { dolor: [man('2030-01-09', 3)] }));
   assert.equal(peor.accion, 'bajar');
   assert.ok(peor.kg < 40);
+});
+
+test('tope de subidas: una sesión puede quitarlo con su propio subidasPorSesion', () => {
+  const rut = { ...rutina, subidasPorSesion: 1 };
+  assert.equal(limiteSubidas(rut, { id: 'S2' }), 1);
+  assert.equal(limiteSubidas(rut, { id: 'S2', subidasPorSesion: 0 }), null);
+  const a = { ...ejSimple, id: 'a', clave: 'ka', nombre: 'Ejercicio A' };
+  const b = { ...ejSimple, id: 'b', clave: 'kb', nombre: 'Ejercicio B' };
+  const ses = [sesion('2030-01-08', 'S1', [{ clave: 'ka', series: series(40, [9, 9, 9]) }, { clave: 'kb', series: series(30, [9, 9, 9]) }])];
+  const lista = [a, b].map((ej) => ({ ej, sug: sugerirPeso({ ...ctx(ej, ses), rutina: rut }) }));
+  const libre = unaSubidaPorSesion({ rutina: rut, sesiones: ses, gimnasio: 'G1', lista, sesion: { id: 'S2', subidasPorSesion: 0 } });
+  assert.deepEqual(libre.map((x) => x.sug.accion), ['subir', 'subir']);
+  const conTope = unaSubidaPorSesion({ rutina: rut, sesiones: ses, gimnasio: 'G1', lista, sesion: { id: 'S1' } });
+  assert.deepEqual(conTope.map((x) => x.sug.accion), ['subir', 'mantener']);
+});
+
+test('registro fuerte en las horas siguientes a una sesión: esa sesión queda fuera de la subida', () => {
+  const ej = { ...ejSimple, zona: 'zona1', noSubirSi: ['dolorZona1Mas4', 'eventoZona1Mas3o30minEn48h'] };
+  const ses = [sesion('2030-01-09', 'S1', [{ clave: 'k1', dolor: 2, series: series(40, [9, 9, 9]) }])];
+  const man1 = { fecha: '2030-01-10', zona: 'zona1', momento: 'manana', valor: 0 };
+  const ev = (fecha, valor, duracionMin = null) => ({ fecha, zona: 'zona1', momento: 'evento', valor, duracionMin });
+  assert.equal(sugerirPeso(ctx(ej, ses, { dolor: [man1] })).accion, 'subir');
+  const fuerte = sugerirPeso(ctx(ej, ses, { dolor: [man1, ev('2030-01-10', 5)] }));
+  assert.equal(fuerte.accion, 'mantener');
+  assert.match(fuerte.motivo, /episodio fuerte/);
+  assert.equal(sugerirPeso(ctx(ej, ses, { dolor: [man1, ev('2030-01-11', 2, 45)] })).accion, 'mantener');
+  assert.equal(sugerirPeso(ctx(ej, ses, { dolor: [man1, ev('2030-01-10', 2, 10)] })).accion, 'subir');
+  assert.equal(sugerirPeso(ctx(ej, ses, { dolor: [man1, ev('2030-01-13', 6)] })).accion, 'subir');
+  // Con puerta de varias sesiones, la sesión seguida de un registro fuerte no cuenta.
+  const ejP = { ...ej, subirTrasSesionesOk: 2 };
+  const dos = [ses[0], sesion('2030-01-12', 'S1', [{ clave: 'k1', dolor: 2, series: series(40, [9, 9, 9]) }])];
+  const man2 = { fecha: '2030-01-13', zona: 'zona1', momento: 'manana', valor: 0 };
+  assert.deepEqual(puertaSesionesOk(ctx(ejP, dos, { dolor: [man1, man2] })), { n: 2, ok: 2, falta: 0 });
+  assert.deepEqual(puertaSesionesOk(ctx(ejP, dos, { dolor: [man1, man2, ev('2030-01-13', 5)] })), { n: 2, ok: 0, falta: 2 });
 });
 
 test('tope de subidas por sesión: el turno es del que más tiempo lleva sin subir', () => {

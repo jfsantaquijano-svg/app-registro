@@ -164,6 +164,7 @@ function sugerenciasDeSesion(rs, gimnasio, alEmpezar = false, soloConDatos = nul
   const ejs = todosLosEjercicios(rs).filter((ej) => (soloConDatos ? !!soloConDatos(ej) : true));
   const lista = unaSubidaPorSesion({
     rutina: S.rutina,
+    sesion: rs,
     sesiones: S.reg.sesiones,
     gimnasio,
     lista: ejs.map((ej) => ({ ej, sug: sugerirPeso(ctxSugerencia(ej, gimnasio, alEmpezar)) })),

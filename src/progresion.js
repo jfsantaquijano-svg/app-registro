@@ -422,6 +422,10 @@ function sesionCumpleParaSubir(ctx, sesion, ej, lado) {
       if (antes != null && man.valor > antes) return false;
     }
   }
+  for (const c of ej.noSubirSi || []) {
+    const p = parsearCondicion(c);
+    if (p?.tipo === 'eventoFuerte' && eventoFuerteTras(dolor, ajustes, p, fechaSesion(sesion))) return false;
+  }
   return true;
 }
 
@@ -449,6 +453,8 @@ function parsearCondicion(c) {
   if (m) return { tipo: 'evento', zona: m[1].toLowerCase() };
   m = String(c).match(/^dolor(Zona\d+)Mas(\d+)$/i);
   if (m) return { tipo: 'dolor', zona: m[1].toLowerCase(), limite: Number(m[2]) };
+  m = String(c).match(/^evento(Zona\d+)Mas(\d+)o(\d+)minEn(\d+)h$/i);
+  if (m) return { tipo: 'eventoFuerte', zona: m[1].toLowerCase(), limite: Number(m[2]), minutos: Number(m[3]), horas: Number(m[4]) };
   return null;
 }
 
@@ -461,6 +467,15 @@ function eventoCuenta(d) {
 function momentosEvento(ajustes, zona) {
   const m = ajustes?.zonas?.[zona]?.momentosEvento;
   return Array.isArray(m) && m.length ? m : ['evento'];
+}
+
+/** ¿Hubo un registro fuerte de esa zona en las horas siguientes a la sesión? Fuerte: valor mayor que `limite` o más minutos que `minutos`. */
+function eventoFuerteTras(dolor, ajustes, p, fecha) {
+  if (!fecha) return false;
+  const momentos = momentosEvento(ajustes, p.zona);
+  const hasta = sumarDias(fecha, Math.ceil(p.horas / 24));
+  return (dolor || []).some((d) => d.zona === p.zona && momentos.includes(d.momento) && d.fecha >= fecha && d.fecha <= hasta
+    && ((d.valor != null && Number(d.valor) > p.limite) || (d.duracionMin != null && Number(d.duracionMin) > p.minutos)));
 }
 
 /**
@@ -633,6 +648,8 @@ export function sugerirPeso(ctx) {
         } else if (dolorMananaCuenta(ajustes, p.zona, reg) && reg.valor > p.limite) {
           bloqueos.push(`al día siguiente amaneció en ${reg.valor}`);
         }
+      } else if (p.tipo === 'eventoFuerte') {
+        if (eventoFuerteTras(dolor, ajustes, p, fechaSesion(ultima))) bloqueos.push(`episodio fuerte en las ${p.horas} h siguientes a esa sesión`);
       }
     }
     if (bloqueos.length) {
@@ -743,8 +760,9 @@ function textoEvento(ajustes, zona) {
 
 /** Duración en minutos de una sesión. */
 /** Tope de ejercicios que pueden ganar kilos en una misma sesión (`rutina.subidasPorSesion`). null = sin tope. */
-export function limiteSubidas(rutina) {
-  const n = Number(rutina?.subidasPorSesion);
+export function limiteSubidas(rutina, sesion = null) {
+  const propio = sesion && Object.hasOwn(sesion, 'subidasPorSesion');
+  const n = Number(propio ? sesion.subidasPorSesion : rutina?.subidasPorSesion);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
@@ -770,8 +788,8 @@ export function sesionesEsperando({ rutina, ej, sesiones, gimnasio }) {
  * El turno es del que más tiempo lleva sin subir; si empatan, el orden en que van en la sesión.
  * `lista`: [{ ej, sug }] en el orden del plan. Devuelve una lista nueva, con las sugerencias ya ajustadas.
  */
-export function unaSubidaPorSesion({ rutina, sesiones, gimnasio, lista }) {
-  const limite = limiteSubidas(rutina);
+export function unaSubidaPorSesion({ rutina, sesiones, gimnasio, lista, sesion = null }) {
+  const limite = limiteSubidas(rutina, sesion);
   if (!limite || !Array.isArray(lista)) return lista;
   const suben = lista.map((x, i) => ({ x, i })).filter(({ x }) => x?.sug?.accion === 'subir');
   if (suben.length <= limite) return lista;
