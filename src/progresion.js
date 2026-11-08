@@ -527,6 +527,8 @@ export function recorridoSiEmpeora(ej, actual) {
 /** Peso de partida sin historial: el del archivo, el de otro ejercicio o la placa conocida siguiente. */
 function pesoSinHistorial(ctx, conocidos) {
   const { ej, sesiones, gimnasio, rutina } = ctx;
+  const propio = gimnasio ? ej.pesoInicialPorGimnasio?.[gimnasio] : null;
+  if (propio != null) return { kg: Number(propio), motivo: ej.pesoTextoPorGimnasio?.[gimnasio] || 'Peso de partida en este gimnasio', deEsteGimnasio: true };
   if (ej.pesoInicialDe) {
     const lado = ladoQueDecide(rutina, ej);
     const otras = sesionesValidas(sesiones).filter((s) => (!gimnasio || s.gimnasio === gimnasio) && datosEjercicio(s, ej.pesoInicialDe)?.series?.length);
@@ -567,7 +569,7 @@ export function sugerirPeso(ctx) {
     const otroGym = sesionesValidas(sesiones).some((s) => decideElPeso(datosEjercicio(s, ej.clave)));
     const p = pesoSinHistorial(ctx, conocidos);
     if (!p) return { kg: null, accion: 'buscar', motivo: ej.pesoTexto || 'Peso por encontrar', provisional: false, conocidos, referencia };
-    return { kg: p.kg, accion: 'inicial', motivo: otroGym ? 'Primera vez en este gimnasio: peso de partida' : p.motivo, porConfirmar: !!p.porConfirmar, provisional: false, conocidos, referencia };
+    return { kg: p.kg, accion: 'inicial', motivo: otroGym && !p.deEsteGimnasio ? 'Primera vez en este gimnasio: peso de partida' : p.motivo, porConfirmar: !!p.porConfirmar, provisional: false, conocidos, referencia };
   }
   const ultima = hist[hist.length - 1];
   const previa = hist.length > 1 ? hist[hist.length - 2] : null;

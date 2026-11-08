@@ -630,6 +630,19 @@ test('bajarSoloSiManana: una molestia puntual acorta el recorrido pero no quita 
   assert.ok(peor.kg < 40);
 });
 
+test('peso de partida propio de un gimnasio: manda cuando ahí no hay historial', () => {
+  const ej = { ...ejSimple, pesoInicialPorGimnasio: { G2: 20 }, pesoTextoPorGimnasio: { G2: 'Texto del gimnasio dos' } };
+  const ses = [sesion('2030-01-08', 'S1', [{ clave: 'k1', series: series(40, [9, 9, 9]) }])];
+  const g2 = sugerirPeso({ ...ctx(ej, ses), gimnasio: 'G2' });
+  assert.equal(g2.accion, 'inicial');
+  assert.equal(g2.kg, 20);
+  assert.equal(g2.motivo, 'Texto del gimnasio dos');
+  assert.notEqual(sugerirPeso({ ...ctx(ej, ses), gimnasio: 'G1' }).accion, 'inicial');
+  const g3 = sugerirPeso({ ...ctx(ej, ses), gimnasio: 'G3' });
+  assert.equal(g3.kg, 40);
+  assert.match(g3.motivo, /Primera vez en este gimnasio/);
+});
+
 test('tope de subidas: una sesión puede quitarlo con su propio subidasPorSesion', () => {
   const rut = { ...rutina, subidasPorSesion: 1 };
   assert.equal(limiteSubidas(rut, { id: 'S2' }), 1);
