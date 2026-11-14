@@ -43,7 +43,7 @@
     },
     "diaAltoKcal": 150,
     "toleranciaKcal": 30,
-    "reglaDeOroP": 105,
+    "reglaDeOroP": 115,
     "grasaMinima": 40,
     "recargos": {
       "salteado": 0.25,
