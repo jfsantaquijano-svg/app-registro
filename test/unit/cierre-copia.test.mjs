@@ -127,6 +127,9 @@ test('copia: validar, normalizar y leer .txt con BOM', () => {
   assert.deepEqual(normalizarCopia({ formato: 'app-registro', version: 1, registros: { pesos: [] } }).registros.pasos, []);
   assert.equal(leerTextoCopia('﻿{"a":1}').a, 1);
   assert.throws(() => leerTextoCopia('no es json'));
+  // Pegado del chat: con texto antes y las marcas del bloque de código
+  assert.equal(leerTextoCopia('Aquí está:\n```json\n{"a":{"b":2}}\n```\nListo.').a.b, 2);
+  assert.throws(() => leerTextoCopia('{ roto'));
   const c = construirCopia({ ...n, registros: n.registros }, { creado: 'x' });
   assert.equal(c.formato, 'app-registro');
   assert.equal(c.version, 1);

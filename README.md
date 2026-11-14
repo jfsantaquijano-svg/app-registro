@@ -15,15 +15,15 @@ App web instalable (PWA) para anotar **comida, entreno y cuerpo**. Funciona sin 
 ## Cómo instalarla
 
 1. Abre el enlace de la app en **Chrome** (no en otro navegador: los datos se guardan en el navegador donde la abras).
-2. Menú ⋮ de Chrome → **"Instalar app"** (o "Agregar a la pantalla principal").
-3. Abre la app desde su ícono → ⋮ → **Importar** → elige tu archivo de arranque (`.txt` o `.json`).
+2. Menú ⋮ de Chrome → la opción que diga **"Instalar"** (según la versión: "Instalar app" o "Instalar y crear acceso directo").
+3. Abre la app desde su ícono → **"📥 Importar archivo"** y elige tu archivo de arranque (`.txt` o `.json`), o **"📋 Pegar el texto"** si te lo dieron en un chat.
 
 ## Tus datos y las copias
 
 - Todo se guarda en el teléfono (IndexedDB). La app pide al navegador que no lo borre por falta de espacio.
 - **Si borras los datos de Chrome o desinstalas la app sin una copia, se pierde todo.** Por eso la pantalla Hoy siempre muestra "Última copia: hace X días".
 - ⋮ → **Exportar copia** crea `copia-AAAA-MM-DD.txt` (JSON). Guárdala donde quieras, por ejemplo en Google Drive.
-- ⋮ → **Importar** acepta `.txt` y `.json`:
+- ⋮ → **Importar** acepta `.txt` y `.json` (y ⋮ → **Importar pegando el texto**, el mismo contenido pegado):
   - **Restaurar copia completa:** reemplaza todo. Antes guarda lo actual para que puedas deshacerlo.
   - **Actualizar plan:** cambia la rutina, las metas y los ajustes; agrega y corrige alimentos y platos sin borrar los que creaste; no toca tus registros.
 - Lo único que usa internet: la consulta a Open Food Facts cuando lees un código de barras, y los enlaces que tú abres (búsqueda en FatSecret y Google Calendar).

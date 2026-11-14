@@ -54,6 +54,44 @@ export function abrirImportar() {
   input.click();
 }
 
+/** Importar pegando el texto (por ejemplo, el que Claude dio en el chat): sin buscar un archivo. */
+export function abrirPegar() {
+  const hj = hoja({ titulo: 'Pegar el texto', clase: 'alta', testid: 'hoja-pegar' });
+  const ta = h('textarea', { class: 'input area-pegar', rows: 8, placeholder: '{ "formato": "app-registro", … }', 'aria-label': 'Texto para importar', autocomplete: 'off', spellcheck: 'false', testid: 'pegar-texto' });
+  montar(
+    hj.cuerpo,
+    h('p', { class: 'suave chico' }, 'Copia todo el texto (empieza con { y termina con }) y pégalo aquí: deja el dedo en el cuadro y toca "Pegar".'),
+    ta,
+    h(
+      'div',
+      { class: 'fila-btns fila-fija' },
+      h(
+        'button',
+        {
+          class: 'btn btn-primario btn-grande',
+          type: 'button',
+          testid: 'pegar-importar',
+          onclick: async () => {
+            if (!ta.value.trim()) return aviso('Pega el texto primero.');
+            // Si no se puede leer, la hoja sigue abierta para corregir sin volver a pegar todo.
+            let obj;
+            try {
+              obj = leerTextoCopia(ta.value);
+            } catch {
+              return aviso('No se pudo leer: revisa que copiaste todo el texto, de la primera { a la última }.', 5000);
+            }
+            const v = validarCopia(obj);
+            if (!v.ok) return aviso(v.error, 4000);
+            hj.cerrar();
+            await importarTexto(ta.value);
+          },
+        },
+        'Importar',
+      ),
+    ),
+  );
+}
+
 export async function importarTexto(texto) {
   let obj;
   try {
@@ -187,9 +225,10 @@ export function pantallaBienvenida() {
     seccion(
       'Bienvenido',
       h('p', {}, 'Esta app registra tu comida, tu entreno y tu cuerpo. Funciona sin internet y tus datos viven en este teléfono.'),
-      h('p', {}, 'Para empezar, importa tu archivo de arranque (el .txt que te mandaron).'),
+      h('p', {}, 'Para empezar, importa tu archivo de arranque (el .txt que te mandaron) o pega su texto.'),
       h('button', { class: 'btn btn-primario btn-grande', type: 'button', testid: 'importar-inicio', onclick: abrirImportar }, '📥 Importar archivo'),
-      h('p', { class: 'suave chico mt' }, 'Para instalarla: en Chrome, ⋮ → "Instalar app" o "Agregar a la pantalla principal".'),
+      h('button', { class: 'btn btn-sec btn-grande mt', type: 'button', testid: 'pegar-inicio', onclick: abrirPegar }, '📋 Pegar el texto'),
+      h('p', { class: 'suave chico mt' }, 'Para instalarla: en el menú ⋮ de Chrome, la opción que diga "Instalar" (por ejemplo, "Instalar y crear acceso directo").'),
     ),
   );
 }
@@ -224,6 +263,7 @@ export async function abrirMenu() {
       { class: 'lista' },
       op('💾 Exportar copia', exportarCopia, 'menu-exportar'),
       op('📥 Importar', abrirImportar, 'menu-importar'),
+      op('📋 Importar pegando el texto', abrirPegar, 'menu-pegar'),
       hayRespaldo ? op('↩️ Deshacer restauración', deshacerRestauracion, 'menu-deshacer') : null,
       hayRespaldo ? op('⬇️ Descargar lo de antes de restaurar', descargarRespaldo) : null,
       op('🎯 Metas', () => ir('datos', 'metas'), 'menu-metas'),

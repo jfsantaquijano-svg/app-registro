@@ -28,9 +28,16 @@ async function anotarPasos(page, boton, numero) {
 
 test('sin rutina: no pregunta "¿Hoy entrenas?", no hay botón de entrenar, el día modelo funciona y los pasos se anotan', async () => {
   const { page, contexto, errores } = await nuevaPagina(nav, srv.url);
-  await importarArchivo(page, SIN_RUTINA);
-  await page.getByTestId('btn-comida').waitFor();
+  // Sin buscar un archivo: pega el texto tal como lo dio Claude en el chat (con las marcas del bloque de código)
+  await page.getByTestId('pegar-inicio').click();
+  await page.getByTestId('pegar-texto').fill('hola');
+  await page.getByTestId('pegar-importar').click();
+  await esperarAviso(page, 'No se pudo leer');
+  assert.equal(await page.getByTestId('hoja-pegar').count(), 1);
+  await page.getByTestId('pegar-texto').fill(`Aquí está tu archivo:\n\`\`\`json\n${readFileSync(SIN_RUTINA, 'utf8')}\n\`\`\``);
+  await page.getByTestId('pegar-importar').click();
   await esperarAviso(page, 'tus datos quedaron cargados');
+  await page.getByTestId('btn-comida').waitFor();
 
   // El tipo de día ya está dado; se puede cambiar tocándolo
   assert.equal(await page.getByText('¿Hoy entrenas?').count(), 0);

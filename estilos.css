@@ -187,6 +187,7 @@ textarea.input { min-height: 80px; }
 /* Pasos de hoy: toda la tarjeta se toca para anotarlos */
 .pasos-toque { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; }
 .pasos-toque .te-falta { margin-bottom: 0; }
+textarea.area-pegar { width: 100%; min-height: 200px; resize: vertical; font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.35; }
 .tarjeta .acciones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-top: 10px; }
 .grasas { display: flex; gap: 8px; }
 .grasas > div { flex: 1; background: var(--sup2); border-radius: 12px; padding: 8px 10px; font-size: 14px; }

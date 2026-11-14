@@ -8,12 +8,24 @@ export function registrosVacios() {
   return { dias: {}, sesiones: [], dolor: [], pesos: [], pasos: [], medidas: [], cintura: [], fotos: [], bioimpedancias: [], historialDias: [], ultimaCopia: null };
 }
 
-/** Lee el texto de un archivo .txt o .json. */
+/**
+ * Lee el texto de un archivo .txt o .json, o el pegado del chat: si trae algo antes o después
+ * (por ejemplo, las marcas de un bloque de código), se lee desde la primera { hasta la última }.
+ */
 export function leerTextoCopia(texto) {
   const limpio = String(texto || '').replace(/^﻿/, '').trim();
   try {
     return JSON.parse(limpio);
   } catch {
+    const i = limpio.indexOf('{');
+    const j = limpio.lastIndexOf('}');
+    if (i >= 0 && j > i) {
+      try {
+        return JSON.parse(limpio.slice(i, j + 1));
+      } catch {
+        /* sigue abajo */
+      }
+    }
     throw new Error('El archivo no es una copia válida (no se pudo leer).');
   }
 }
