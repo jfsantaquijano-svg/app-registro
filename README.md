@@ -23,7 +23,7 @@ App web instalable (PWA) para anotar **comida, entreno y cuerpo**. Funciona sin 
 - Todo se guarda en el teléfono (IndexedDB). La app pide al navegador que no lo borre por falta de espacio.
 - **Si borras los datos de Chrome o desinstalas la app sin una copia, se pierde todo.** Por eso la pantalla Hoy siempre muestra "Última copia: hace X días".
 - ⋮ → **Exportar copia** crea `copia-AAAA-MM-DD.txt` (JSON). Guárdala donde quieras, por ejemplo en Google Drive.
-- ⋮ → **Importar** acepta `.txt` y `.json` (y ⋮ → **Importar pegando el texto**, el mismo contenido pegado):
+- ⋮ → **Importar** acepta `.txt` y `.json` (y ⋮ → **Importar pegando el texto**, el mismo contenido pegado). Un archivo de arranque se revisa antes de cargarlo y, si trae errores, la app dice cuáles y deja copiarlos para quien lo hizo:
   - **Restaurar copia completa:** reemplaza todo. Antes guarda lo actual para que puedas deshacerlo.
   - **Actualizar plan:** cambia la rutina, las metas y los ajustes; agrega y corrige alimentos y platos sin borrar los que creaste; no toca tus registros.
 - Lo único que usa internet: la consulta a Open Food Facts cuando lees un código de barras, y los enlaces que tú abres (búsqueda en FatSecret y Google Calendar).

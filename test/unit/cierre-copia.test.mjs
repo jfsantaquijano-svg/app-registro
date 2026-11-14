@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { proponerCierre, porciones, tablaFinal, planCierra, textoCantidad, rolDe, nombreEstado } from '../../src/cierre.js';
-import { validarCopia, normalizarCopia, combinarPorId, actualizarPlan, construirCopia, leerTextoCopia } from '../../src/copia.js';
+import { validarCopia, normalizarCopia, combinarPorId, actualizarPlan, construirCopia, leerTextoCopia, revisarCopia } from '../../src/copia.js';
 
 const arranque = JSON.parse(readFileSync(new URL('../arranque-prueba.json', import.meta.url), 'utf8'));
 const { metas, alimentos } = arranque;
@@ -196,5 +196,32 @@ test('los archivos de ejemplo son válidos: ids únicos, platos con alimentos qu
       assert.ok(Math.abs(kcal - m.kcal) <= m.kcal * 0.05, `${nombre}: ${k} no cuadra (${kcal} contra ${m.kcal})`);
     }
     if (a.metas.pasos?.minimo) assert.ok(a.metas.pasos.minimo <= a.metas.pasos.meta);
+    // La revisión al importar no encuentra nada en los ejemplos
+    assert.deepEqual(revisarCopia(a), [], nombre);
   }
+});
+
+test('revisar un archivo de arranque: dice qué corregir, con el id, sin inventar problemas', () => {
+  const a = JSON.parse(readFileSync(new URL('../arranque-sin-rutina.json', import.meta.url), 'utf8'));
+  a.alimentos.push({ ...a.alimentos[0] });
+  a.alimentos.find((x) => x.id === 'huevo').kcal = '72';
+  a.platos[0].items.push({ alimentoId: 'pan-integral', cantidad: 1, unidad: 'und', estado: null });
+  for (const p of a.platos) p.etiquetas = ['diaModelo', 'normal'];
+  a.metas.pasos = { meta: '10.000' };
+  a.registros.pasos.push({ fecha: '7/01/2030', pasos: 5000 });
+  a.ajustes.diasPeso = [7];
+  const r = revisarCopia(a);
+  assert.ok(r.includes('alimento "huevo": "kcal" debe ser un número.'), r.join('\n'));
+  assert.ok(r.some((x) => x.startsWith(`alimento "${a.alimentos[0].id}": el id está repetido`)));
+  assert.ok(r.includes('plato "desayuno-normal": usa "pan-integral", que no está en los alimentos.'));
+  assert.ok(r.some((x) => x.startsWith('Día modelo: ningún plato con "diaModelo" tiene la etiqueta "descanso" (el tipo de día "Día normal")')));
+  assert.ok(r.includes('metas.pasos: "meta" debe ser un número entero, por ejemplo 10000.'));
+  assert.ok(r.some((x) => x.startsWith('registros.pasos n.º 3')));
+  assert.ok(r.includes('ajustes.diasPeso: deben ser números de 0 (domingo) a 6 (sábado).'));
+  assert.equal(r.length, 7);
+  // Un plan nuevo puede usar los alimentos que ya están en la app
+  const b = JSON.parse(readFileSync(new URL('../arranque-sin-rutina.json', import.meta.url), 'utf8'));
+  b.platos[0].items.push({ alimentoId: 'creado-en-la-app', cantidad: 1, unidad: 'und', estado: null });
+  assert.equal(revisarCopia(b).length, 1);
+  assert.deepEqual(revisarCopia(b, ['creado-en-la-app']), []);
 });

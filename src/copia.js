@@ -41,6 +41,91 @@ export function validarCopia(obj) {
   return { ok: true };
 }
 
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+const esNum = (x) => typeof x === 'number' && Number.isFinite(x);
+const esEntero = (x) => Number.isInteger(x) && x >= 0;
+
+/**
+ * Lo que en un archivo de arranque haría que la app calcule mal o deje algo por fuera.
+ * No impide importarlo: son frases cortas, con el id de lo que hay que corregir,
+ * para pegárselas a quien hizo el archivo. `idsAlimentosApp`: alimentos que ya están en la app
+ * (un plan nuevo puede usar los que creó el usuario).
+ */
+export function revisarCopia(obj, idsAlimentosApp = []) {
+  const out = [];
+  const metas = obj?.metas;
+  if (metas) {
+    const tipos = metas.tipos && typeof metas.tipos === 'object' ? metas.tipos : {};
+    if (!Object.keys(tipos).length) out.push('metas: falta "tipos" (al menos un tipo de día con sus calorías).');
+    for (const [k, m] of Object.entries(tipos)) {
+      if (!esNum(m?.kcal) || m.kcal <= 0) out.push(`metas.tipos.${k}: "kcal" debe ser un número.`);
+      const campos = m?.soloKcalYProteina ? [] : ['p', 'g', 'c'];
+      for (const n of campos) if (!esNum(m?.[n])) out.push(`metas.tipos.${k}: "${n}" debe ser un número.`);
+      for (const n of ['pMin', 'pMax', 'gMin', 'gMax']) if (m?.[n] != null && !esNum(m[n])) out.push(`metas.tipos.${k}: "${n}" debe ser un número.`);
+    }
+    if (metas.pasos != null) {
+      const { meta, minimo } = metas.pasos;
+      if (!esEntero(meta) || meta === 0) out.push('metas.pasos: "meta" debe ser un número entero, por ejemplo 10000.');
+      else if (minimo != null && (!esEntero(minimo) || minimo > meta)) out.push('metas.pasos: "minimo" debe ser un número entero, menor o igual que la meta.');
+    }
+  }
+  const ids = new Set(idsAlimentosApp);
+  const vistos = new Set();
+  (Array.isArray(obj?.alimentos) ? obj.alimentos : []).forEach((a, i) => {
+    const quien = a?.id ? `alimento "${a.id}"` : `alimento n.º ${i + 1}`;
+    if (!a?.id || typeof a.id !== 'string') return out.push(`${quien}: falta "id".`);
+    if (vistos.has(a.id)) out.push(`${quien}: el id está repetido.`);
+    vistos.add(a.id);
+    ids.add(a.id);
+    if (!a.nombre) out.push(`${quien}: falta "nombre".`);
+    if (a.base !== '100g' && a.base !== 'unidad') out.push(`${quien}: "base" debe ser "100g" o "unidad".`);
+    for (const n of ['kcal', 'p', 'g', 'c']) if (!esNum(a[n]) || a[n] < 0) out.push(`${quien}: "${n}" debe ser un número.`);
+    if (a.coccion && (!['carne', 'arroz'].includes(a.coccion.tipo) || !['crudo', 'cocido'].includes(a.coccion.estado))) {
+      out.push(`${quien}: "coccion" debe ser { "tipo": "carne" o "arroz", "estado": "crudo" o "cocido" }.`);
+    }
+  });
+  const platos = Array.isArray(obj?.platos) ? obj.platos : [];
+  const vistosP = new Set();
+  platos.forEach((p, i) => {
+    const quien = p?.id ? `plato "${p.id}"` : `plato n.º ${i + 1}`;
+    if (!p?.id) return out.push(`${quien}: falta "id".`);
+    if (vistosP.has(p.id)) out.push(`${quien}: el id está repetido.`);
+    vistosP.add(p.id);
+    if (p.totales) return;
+    if (!(p.items || []).length) out.push(`${quien}: no tiene "items" ni "totales".`);
+    for (const it of p.items || []) if (!ids.has(it?.alimentoId)) out.push(`${quien}: usa "${it?.alimentoId}", que no está en los alimentos.`);
+  });
+  // Día modelo: cada tipo de día activo (salvo los de solo calorías y proteína) necesita sus platos.
+  const conEtiqueta = (e) => platos.some((p) => (p?.etiquetas || []).includes('diaModelo') && (p?.etiquetas || []).includes(e));
+  if (metas?.tipos && platos.some((p) => (p?.etiquetas || []).includes('diaModelo'))) {
+    for (const [k, m] of Object.entries(metas.tipos)) {
+      if (m?.activo === false || m?.soloKcalYProteina) continue;
+      if (!conEtiqueta(k) && !(m?.diaModeloDe && conEtiqueta(m.diaModeloDe))) {
+        out.push(`Día modelo: ningún plato con "diaModelo" tiene la etiqueta "${k}" (el tipo de día "${m?.nombre || k}"), así que "Planear" no tendría qué poner.`);
+      }
+    }
+  }
+  const reg = obj?.registros || {};
+  (Array.isArray(reg.pesos) ? reg.pesos : []).forEach((x, i) => {
+    if (!FECHA.test(x?.fecha || '') || !esNum(x?.kg)) out.push(`registros.pesos n.º ${i + 1}: necesita "fecha" (AAAA-MM-DD) y "kg" como número.`);
+  });
+  (Array.isArray(reg.pasos) ? reg.pasos : []).forEach((x, i) => {
+    if (!FECHA.test(x?.fecha || '') || !esEntero(x?.pasos)) out.push(`registros.pasos n.º ${i + 1}: necesita "fecha" (AAAA-MM-DD) y "pasos" como número entero.`);
+  });
+  const aj = obj?.ajustes || {};
+  (Array.isArray(aj.fechas) ? aj.fechas : []).forEach((f, i) => {
+    if (!FECHA.test(f?.fecha || '')) out.push(`ajustes.fechas n.º ${i + 1}: "fecha" debe ir como AAAA-MM-DD.`);
+  });
+  if (aj.comidaLibre && (!FECHA.test(aj.comidaLibre.desde || '') || !esEntero(aj.comidaLibre.cadaDias) || !aj.comidaLibre.cadaDias)) {
+    out.push('ajustes.comidaLibre: necesita "desde" (AAAA-MM-DD) y "cadaDias" como número entero.');
+  }
+  if (aj.diasPeso != null && (!Array.isArray(aj.diasPeso) || aj.diasPeso.some((d) => !Number.isInteger(d) || d < 0 || d > 6))) {
+    out.push('ajustes.diasPeso: deben ser números de 0 (domingo) a 6 (sábado).');
+  }
+  if (obj?.rutina != null && !Array.isArray(obj.rutina.sesiones)) out.push('rutina: debe ser null o tener "sesiones".');
+  return out;
+}
+
 /** Completa lo que falte para que la app pueda trabajar con la copia. */
 export function normalizarCopia(obj) {
   const reg = { ...registrosVacios(), ...(obj.registros || {}) };

@@ -177,3 +177,34 @@ test('con días de entreno sigue la pregunta; la meta de pasos se edita en Metas
   assert.deepEqual(errores, []);
   await contexto.close();
 });
+
+test('archivo de arranque con errores: la app los dice antes de cargarlo, se copian para Claude y no se carga hasta decidir', async () => {
+  const { page, contexto, errores } = await nuevaPagina(nav, srv.url);
+  const a = JSON.parse(readFileSync(SIN_RUTINA, 'utf8'));
+  a.alimentos.find((x) => x.id === 'huevo').kcal = '72';
+  a.platos[0].items.push({ alimentoId: 'pan-integral', cantidad: 1, unidad: 'und', estado: null });
+  await page.getByTestId('pegar-inicio').click();
+  await page.getByTestId('pegar-texto').fill(JSON.stringify(a));
+  await page.getByTestId('pegar-importar').click();
+  await page.getByTestId('hoja-problemas').waitFor();
+  assert.deepEqual(await page.getByTestId('problemas').locator('li').allInnerTexts(), ['alimento "huevo": "kcal" debe ser un número.', 'plato "desayuno-normal": usa "pan-integral", que no está en los alimentos.']);
+  await page.getByTestId('problemas-copiar').click();
+  await esperarAviso(page, 'Pégaselo a Claude');
+  const texto = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(texto, /^Al cargar mi archivo en la app salieron estos problemas\. Corrígelos y entrégame el archivo completo otra vez:\n- alimento "huevo"/);
+  // No cargarlo todavía: la app sigue vacía
+  await page.getByTestId('problemas-cancelar').click();
+  await page.getByTestId('hoja-problemas').waitFor({ state: 'detached' });
+  await page.getByTestId('bienvenida').waitFor();
+  assert.equal((await leerDB(page)).metas, undefined);
+  // Cargarlo igual: queda cargado
+  await page.getByTestId('pegar-inicio').click();
+  await page.getByTestId('pegar-texto').fill(JSON.stringify(a));
+  await page.getByTestId('pegar-importar').click();
+  await page.getByTestId('problemas-cargar').click();
+  await esperarAviso(page, 'tus datos quedaron cargados');
+  assert.equal((await leerDB(page)).metas.pasos.meta, 10000);
+  await captura(page, '33-cargado-igual');
+  assert.deepEqual(errores, []);
+  await contexto.close();
+});

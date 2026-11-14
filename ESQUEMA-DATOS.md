@@ -21,6 +21,8 @@ Este documento es genérico: todos los nombres, números y textos de los ejemplo
 
 Ejemplos completos con datos inventados: `test/arranque-prueba.json` (con rutina) y `test/arranque-sin-rutina.json` (alguien que todavía no entrena: `rutina: null`).
 
+Antes de cargar un archivo de tipo `arranque`, la app lo revisa: ids repetidos, números escritos como texto, platos que usan alimentos que no existen, fechas que no son `AAAA-MM-DD`, tipos de día activos sin platos de día modelo cuando el archivo sí trae día modelo, y pasos que no son números enteros. Si encuentra algo, lo muestra con el id de lo que hay que corregir y un botón para copiarlo; se puede cargar igual. Las copias que exporta la app no se revisan.
+
 Al importar un `arranque` en una app vacía se carga todo. "Actualizar plan" reemplaza `rutina`, `metas` y `ajustes`, y combina `alimentos` y `platos` por `id`: agrega y corrige lo del plan, y nunca borra ni pisa lo que creó el usuario (`origen: "usuario"`) ni lo que corrigió (`editado: true`). Conserva las marcas del usuario (favorito, en casa, el interruptor del suplemento diario y lo que ya marcó como hecho en `recordatorio`). Nunca toca `registros`.
 
 ## ajustes

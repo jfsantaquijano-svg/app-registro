@@ -1,10 +1,10 @@
 // Datos: exportar e importar la copia, metas, alimentos, platos, rutina y ajustes.
 import { S, guardar, estaVacia, cargarCopia, copiaActual, invalidarIndice, uid } from './estado.js';
 import * as db from './db.js';
-import { leerTextoCopia, validarCopia, actualizarPlan, nombreArchivoCopia, normalizarCopia } from './copia.js';
+import { leerTextoCopia, validarCopia, revisarCopia, actualizarPlan, nombreArchivoCopia, normalizarCopia } from './copia.js';
 import { hoy, isoLocal, fechaCorta, fechaDeIso, horaLocal, difDias, fmtDuracion } from './fechas.js';
 import { num, numPasos, fmtKcal, fmtG, sinTildes, buscarAlimentos } from './calculos.js';
-import { h, montar, hoja, confirmar, aviso, chips, campo, inputNum, inputTexto, casilla, seccion, vacio, descargar } from './ui.js';
+import { h, montar, hoja, confirmar, aviso, chips, campo, inputNum, inputTexto, casilla, seccion, vacio, descargar, copiarTexto } from './ui.js';
 import { abrirProductoNuevo } from './comida.js';
 import { abrirCalendario } from './cuerpo.js';
 import { reglaRecorte, textosAjusteSesion, textosSeriesDesdeSemana, textoDuracion, textoSemanaSuave } from './progresion.js';
@@ -92,6 +92,54 @@ export function abrirPegar() {
   );
 }
 
+/** Cuántos problemas se muestran en la hoja (el texto para copiar los lleva todos). */
+const MAX_PROBLEMAS = 12;
+
+/**
+ * Si el archivo de arranque trae errores, se muestran antes de cargarlo, con un botón para copiárselos
+ * a quien lo hizo. Devuelve true si la persona decide cargarlo igual.
+ */
+function confirmarProblemas(problemas) {
+  return new Promise((resolve) => {
+    let cargar = false;
+    const hj = hoja({ titulo: 'Revisa el archivo', clase: 'alta', testid: 'hoja-problemas', alCerrar: () => resolve(cargar) });
+    const texto = `Al cargar mi archivo en la app salieron estos problemas. Corrígelos y entrégame el archivo completo otra vez:\n${problemas.map((p) => `- ${p}`).join('\n')}`;
+    montar(
+      hj.cuerpo,
+      h('p', {}, `El archivo tiene ${problemas.length === 1 ? '1 cosa' : `${problemas.length} cosas`} por corregir. Lo mejor es copiárselas a quien lo hizo y cargar el archivo corregido.`),
+      h('ul', { class: 'lista-problemas', testid: 'problemas' }, problemas.slice(0, MAX_PROBLEMAS).map((p) => h('li', {}, p))),
+      problemas.length > MAX_PROBLEMAS ? h('p', { class: 'suave chico' }, `…y ${problemas.length - MAX_PROBLEMAS} más (van todas al copiar).`) : null,
+      h(
+        'button',
+        {
+          class: 'btn btn-primario btn-ancho mb',
+          type: 'button',
+          testid: 'problemas-copiar',
+          onclick: async () => {
+            const ok = await copiarTexto(texto);
+            aviso(ok ? 'Copiado. Pégaselo a Claude en el chat.' : 'No se pudo copiar.');
+          },
+        },
+        '📋 Copiar para Claude',
+      ),
+      h('button', { class: 'btn btn-sec btn-ancho mb', type: 'button', testid: 'problemas-cancelar', onclick: () => hj.cerrar() }, 'No cargarlo todavía'),
+      h(
+        'button',
+        {
+          class: 'btn-texto',
+          type: 'button',
+          testid: 'problemas-cargar',
+          onclick: () => {
+            cargar = true;
+            hj.cerrar();
+          },
+        },
+        'Cargarlo igual',
+      ),
+    );
+  });
+}
+
 export async function importarTexto(texto) {
   let obj;
   try {
@@ -105,6 +153,9 @@ export async function importarTexto(texto) {
     aviso(v.error, 4000);
     return;
   }
+  // Un archivo de arranque lo hace una persona o Claude: se revisa antes de cargarlo. Las copias las hizo la app.
+  const problemas = obj.tipo === 'arranque' ? revisarCopia(obj, S.alimentos.map((a) => a.id)) : [];
+  if (problemas.length && !(await confirmarProblemas(problemas))) return;
   if (estaVacia()) {
     await cargarCopia(obj);
     await db.pedirPersistencia();
