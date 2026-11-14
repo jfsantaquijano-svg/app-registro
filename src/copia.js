@@ -2,10 +2,10 @@
 export const FORMATO = 'app-registro';
 export const VERSION_ESQUEMA = 1;
 
-export const CLAVES_REGISTROS = ['dias', 'sesiones', 'dolor', 'pesos', 'medidas', 'cintura', 'fotos', 'bioimpedancias', 'historialDias', 'ultimaCopia'];
+export const CLAVES_REGISTROS = ['dias', 'sesiones', 'dolor', 'pesos', 'pasos', 'medidas', 'cintura', 'fotos', 'bioimpedancias', 'historialDias', 'ultimaCopia'];
 
 export function registrosVacios() {
-  return { dias: {}, sesiones: [], dolor: [], pesos: [], medidas: [], cintura: [], fotos: [], bioimpedancias: [], historialDias: [], ultimaCopia: null };
+  return { dias: {}, sesiones: [], dolor: [], pesos: [], pasos: [], medidas: [], cintura: [], fotos: [], bioimpedancias: [], historialDias: [], ultimaCopia: null };
 }
 
 /** Lee el texto de un archivo .txt o .json. */

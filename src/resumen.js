@@ -4,6 +4,7 @@ import { resumenSemana, fmtKcal, fmtG, metaDelTipo, signo, plural } from './calc
 import { lunesDe, sumarDias, fechaCorta, diaMes, fechaDeIso, horaLocal, hoy } from './fechas.js';
 import { duracionMin } from './progresion.js';
 import { diasParaResumen } from './avisos.js';
+import { hayPasos, metaPasos, pasosDeSemana } from './pasos.js';
 
 /**
  * Resumen de la semana de `fecha` (lunes a domingo). En la semana en curso cuenta hasta hoy,
@@ -43,6 +44,15 @@ export function textoParaClaude(fecha) {
   if (r.nViaje) L.push(`Promedio limpio sin viajes: ${r.kcalLimpio != null ? fmtKcal(r.kcalLimpio) : '—'} (meta ${r.kcalMetaLimpio != null ? fmtKcal(r.kcalMetaLimpio) : '—'})`);
   L.push(`Proteína promedio: ${r.pProm != null ? Math.round(r.pProm) : '—'} g`);
   L.push(`Días altos: ${r.diasAltos.length}${r.diasAltos.length ? ` (${r.diasAltos.map(fechaCorta).join(', ')})` : ''}`);
+  const ps = hayPasos() ? pasosDeSemana(r.lunes, hoy()) : null;
+  if (ps) {
+    const mp = metaPasos();
+    let t = `Pasos promedio: ${ps.prom != null ? fmtKcal(ps.prom) : '—'} (${plural(ps.n, 'día anotado', 'días anotados')})`;
+    if (mp) t += ` · meta ${fmtKcal(mp.meta)}${Number(mp.minimo) > 0 ? ` · mínimo ${fmtKcal(mp.minimo)}` : ''}`;
+    if (ps.n && ps.enMeta != null) t += ` · en la meta: ${ps.enMeta} de ${ps.n}`;
+    if (ps.n && ps.bajoMinimo != null) t += ` · bajo el mínimo: ${ps.bajoMinimo}`;
+    L.push(t);
+  }
   if (r.hoyFuera) L.push('Hoy todavía no entra a los promedios: entra al cerrar el día.');
   L.push('');
   L.push('Días:');
@@ -90,6 +100,7 @@ export function textoParaClaude(fecha) {
   const pesos = S.reg.pesos.filter((p) => p.fecha >= r.lunes && p.fecha <= r.domingo);
   L.push('');
   L.push(`Pesos: ${pesos.length ? pesos.map((p) => `${fechaCorta(p.fecha)} ${p.kg}${p.tipo === 'bio' ? ' (bioimpedancia)' : ''}`).join(', ') : 'sin pesajes'}`);
+  if (ps) L.push(`Pasos: ${ps.n ? ps.dias.map((d) => `${fechaCorta(d.fecha)} ${fmtKcal(d.n)}`).join(', ') : 'sin pasos anotados'}`);
   return L.join('\n');
 }
 

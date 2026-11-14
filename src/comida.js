@@ -1,5 +1,5 @@
 // Comida: el día en 4 momentos, agregar alimentos y platos, producto nuevo, planear y cerrar el día.
-import { S, guardar, getDia, uid, alimentoPorId, platoPorId, totalesDelDia, metaDelDia, tipoDelDia, frecuenciaAlimentos, recientes, invalidarIndice } from './estado.js';
+import { S, guardar, getDia, uid, alimentoPorId, platoPorId, totalesDelDia, metaDelDia, tipoDelDia, tipoSinPreguntar, frecuenciaAlimentos, recientes, invalidarIndice } from './estado.js';
 import {
   MOMENTOS,
   NOMBRE_MOMENTO,
@@ -59,10 +59,16 @@ export async function guardarDia(fecha) {
   await guardar('reg.dias');
 }
 
+/** ¿El plan tiene días de entreno? Solo entonces se pregunta "¿Hoy entrenas?". */
+export function planConEntreno() {
+  const e = S.metas?.tipos?.entreno;
+  return !!e && e.activo !== false;
+}
+
 /** Tipos de día para elegir. Los que el archivo marca `activo: false` no salen (salvo el que ya tiene el día). */
 export function opcionesTipo(actual = null) {
   const tipos = S.metas?.tipos || {};
-  const texto = { entreno: 'Sí, entreno', descanso: 'No, descanso' };
+  const texto = planConEntreno() ? { entreno: 'Sí, entreno', descanso: 'No, descanso' } : {};
   return Object.keys(tipos)
     .filter((k) => tipos[k].activo !== false || k === actual)
     .map((k) => ({ valor: k, texto: texto[k] || tipos[k].nombre || k }));
@@ -75,7 +81,8 @@ export async function fijarTipo(fecha, tipo) {
 }
 
 export function elegirTipo(fecha, alElegir) {
-  const hj = hoja({ titulo: fecha === hoy() ? '¿Hoy entrenas?' : `Tipo de día: ${fechaCorta(fecha)}`, testid: 'hoja-tipo' });
+  const titulo = fecha !== hoy() ? `Tipo de día: ${fechaCorta(fecha)}` : planConEntreno() ? '¿Hoy entrenas?' : 'Tipo de día de hoy';
+  const hj = hoja({ titulo, testid: 'hoja-tipo' });
   montar(
     hj.cuerpo,
     chips({
@@ -234,7 +241,7 @@ async function reemplazarPlaneado(fecha, momento) {
 // ---------- Planear el día ----------
 
 export async function planearDia(fecha) {
-  let tipo = getDia(fecha)?.tipo;
+  const tipo = getDia(fecha)?.tipo || tipoSinPreguntar();
   if (!tipo) {
     elegirTipo(fecha, () => planearDia(fecha));
     return;
@@ -385,7 +392,7 @@ export function bloqueBarras(fecha, { compacto = false } = {}) {
     h(
       'div',
       { class: 'tarjeta-tit', testid: 'meta-tit' },
-      h('span', {}, getDia(fecha)?.tipo ? metaDelTipo(S.metas, tipoDelDia(fecha))?.nombre || '' : 'Elige el tipo de día'),
+      h('span', {}, getDia(fecha)?.tipo || tipoSinPreguntar() ? metaDelTipo(S.metas, tipoDelDia(fecha))?.nombre || '' : 'Elige el tipo de día'),
       t.estimados ? h('span', { class: 'etiqueta amarilla' }, 'con estimados') : null,
       getDia(fecha)?.resumen?.cerrado ? h('span', { class: 'etiqueta verde' }, 'día cerrado') : null,
     ),
@@ -1372,7 +1379,7 @@ export function render(cont) {
       'div',
       { class: 'tipo-dia' },
       h('span', { class: 'suave' }, 'Tipo de día:'),
-      h('button', { class: 'chip sel', type: 'button', testid: 'cambiar-tipo', onclick: () => elegirTipo(fecha) }, d?.tipo ? metaDelTipo(S.metas, d.tipo)?.nombre || d.tipo : 'Elegir'),
+      h('button', { class: 'chip sel', type: 'button', testid: 'cambiar-tipo', onclick: () => elegirTipo(fecha) }, d?.tipo || tipoSinPreguntar() ? metaDelTipo(S.metas, tipoDelDia(fecha))?.nombre || d?.tipo || '' : 'Elegir'),
     ),
     bloqueBarras(fecha),
     h(

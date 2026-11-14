@@ -123,6 +123,8 @@ test('copia: validar, normalizar y leer .txt con BOM', () => {
   const n = normalizarCopia({ formato: 'app-registro', version: 1 });
   assert.deepEqual(n.registros.sesiones, []);
   assert.deepEqual(n.registros.dias, {});
+  // Una copia de antes de los pasos queda con la lista vacía
+  assert.deepEqual(normalizarCopia({ formato: 'app-registro', version: 1, registros: { pesos: [] } }).registros.pasos, []);
   assert.equal(leerTextoCopia('﻿{"a":1}').a, 1);
   assert.throws(() => leerTextoCopia('no es json'));
   const c = construirCopia({ ...n, registros: n.registros }, { creado: 'x' });
@@ -174,4 +176,22 @@ test('no propone suplementos como grasa ni platos de restaurante', () => {
   const fuera = { id: 'fuera', nombre: 'Plato de fuera', categoria: 'restaurante', base: 'unidad', kcal: 500, p: 40, g: 20, c: 40, enCasa: true, restaurante: { nombre: 'x', recargo: 'plancha' } };
   const r = proponerCierre({ meta, metas, consumido: { kcal: 1000, p: 80, g: 20, c: 100 }, alimentos: [capsula, fuera, ...alimentos], frecuencia: { capsula: 50, fuera: 50 }, prefs });
   assert.ok(r.items.every((i) => !['capsula', 'fuera'].includes(i.alimento.id)));
+});
+
+test('los archivos de ejemplo son válidos: ids únicos, platos con alimentos que existen y metas que cuadran', () => {
+  for (const nombre of ['arranque-prueba.json', 'arranque-sin-rutina.json']) {
+    const a = JSON.parse(readFileSync(new URL(`../${nombre}`, import.meta.url), 'utf8'));
+    assert.equal(validarCopia(a).ok, true, nombre);
+    const ids = a.alimentos.map((x) => x.id);
+    assert.equal(new Set(ids).size, ids.length, `${nombre}: ids de alimentos repetidos`);
+    const idsPlatos = a.platos.map((x) => x.id);
+    assert.equal(new Set(idsPlatos).size, idsPlatos.length, `${nombre}: ids de platos repetidos`);
+    for (const p of a.platos) for (const it of p.items) assert.ok(ids.includes(it.alimentoId), `${nombre}: ${p.id} usa ${it.alimentoId}, que no existe`);
+    for (const [k, m] of Object.entries(a.metas.tipos)) {
+      if (m.soloKcalYProteina) continue;
+      const kcal = 4 * m.p + 4 * m.c + 9 * m.g;
+      assert.ok(Math.abs(kcal - m.kcal) <= m.kcal * 0.05, `${nombre}: ${k} no cuadra (${kcal} contra ${m.kcal})`);
+    }
+    if (a.metas.pasos?.minimo) assert.ok(a.metas.pasos.minimo <= a.metas.pasos.meta);
+  }
 });

@@ -19,6 +19,8 @@ Este documento es genérico: todos los nombres, números y textos de los ejemplo
 }
 ```
 
+Ejemplos completos con datos inventados: `test/arranque-prueba.json` (con rutina) y `test/arranque-sin-rutina.json` (alguien que todavía no entrena: `rutina: null`).
+
 Al importar un `arranque` en una app vacía se carga todo. "Actualizar plan" reemplaza `rutina`, `metas` y `ajustes`, y combina `alimentos` y `platos` por `id`: agrega y corrige lo del plan, y nunca borra ni pisa lo que creó el usuario (`origen: "usuario"`) ni lo que corrigió (`editado: true`). Conserva las marcas del usuario (favorito, en casa, el interruptor del suplemento diario y lo que ya marcó como hecho en `recordatorio`). Nunca toca `registros`.
 
 ## ajustes
@@ -47,6 +49,9 @@ Al importar un `arranque` en una app vacía se carga todo. "Actualizar plan" ree
 }
 ```
 
+- Todo en `ajustes` es opcional. Un plan sin rutina no necesita `zonas`, `umbralDolor`, `alarmas`, `avisoAlarma`, `gimnasios` ni `diasAvisoRecorrido`.
+- `diasPeso`: días de la semana en que se resalta el botón de Peso (0 = domingo, 1 = lunes … 6 = sábado). `pesoNoResaltarTrasViajeDias`: días después de un día de viaje en que no se resalta.
+- `comidaLibre`: una comida libre cada `cadaDias` días contando desde `desde`; Hoy la avisa desde 3 días antes.
 - Toda frase propia de cada persona (nombres de zonas, alarmas, preguntas, recordatorios, fechas, reglas) viene de aquí. El código solo usa `zona1`, `zona2`, `alarmas[i]` y textos genéricos.
 - `zonas.*.sesiones`: tipos de sesión (`rutina.sesiones[].tipo`) en que se pregunta esa zona. `preguntaManana` sale la mañana siguiente a esas sesiones (si no se anotó ese día, se pregunta hasta 3 días después con la fecha). `preguntaNoche` sale desde las 19:00 del mismo día. `preguntaDormir` + `dormirAnula`: si marca la casilla, ese dolor de la mañana no cuenta para subir peso.
 - `umbralDolor`: dolor (0–10) por encima del cual no se sube peso. Sin él, la app no aplica reglas de dolor.
@@ -69,6 +74,7 @@ Al importar un `arranque` en una app vacía se carga todo. "Actualizar plan" ree
     "viaje":    { "nombre": "Viaje", "kcal": 2500, "pMin": 130, "soloKcalYProteina": true, "cuentaDiaAlto": false, "promedioLimpio": false },
     "pausa":    { "nombre": "Pausa de ejemplo", "kcal": 2400, "p": 150, "g": 75, "c": 280, "pMin": 140, "pMax": 160, "gMin": 60, "gMax": 85, "activo": false, "diaModeloDe": "descanso" }
   },
+  "pasos": { "meta": 9000, "minimo": 6000 },
   "diaAltoKcal": 150,
   "toleranciaKcal": 30,
   "reglaDeOroP": 150,
@@ -81,6 +87,8 @@ Al importar un `arranque` en una app vacía se carga todo. "Actualizar plan" ree
 - `activo: false`: el tipo no sale en "¿Hoy entrenas?" hasta que se activa en Metas.
 - `diaModeloDe`: si el tipo no tiene platos de día modelo propios, "Planear el día" usa los de ese otro tipo.
 - `toleranciaKcal`: margen sobre la meta que todavía cuenta como ✅ (una sola tolerancia en barras, cierre y propuesta). Por defecto 30.
+- Tipo de día sin elegir: `entreno` si ese día hubo sesión, si no `descanso`. **Si el plan no tiene el tipo `entreno` activo, la app no pregunta "¿Hoy entrenas?"**: usa `descanso` si existe, o el primer tipo activo, y se cambia tocándolo en Hoy. Para alguien que todavía no entrena conviene un solo tipo `descanso` con el nombre que quiera (por ejemplo "Día normal") y sus platos de día modelo con la etiqueta `descanso`: cuando llegue la rutina se agrega `entreno`, y los días anteriores quedan como descanso.
+- `pasos` (opcional): meta de pasos al día y un mínimo opcional (`minimo` ≤ `meta`), en números enteros. Con meta, Hoy muestra "Pasos de hoy" contra la meta, y el resumen de la semana y "Copiar para Claude" traen el promedio y los días en la meta. Se puede cambiar en Metas.
 
 ## alimentos
 
@@ -147,6 +155,8 @@ Una combinación que se registra con un toque, escalable (½, 1, 1½).
 - "Planear el día" usa los platos con `diaModelo` y la etiqueta del tipo de día. "Cambiar" ofrece los demás platos de ese momento, incluidos los de restaurante.
 
 ## rutina
+
+`rutina` puede ir en `null`: Entreno dice que todavía no hay rutina y Hoy no muestra el botón de entrenar. La rutina llega después con "Actualizar plan".
 
 ```json
 {
@@ -246,6 +256,7 @@ Una combinación que se registra con un toque, escalable (½, 1, 1½).
   "dolor": [ { "fecha", "hora", "zona", "momento": "manana|noche|antes|evento", "valor", "durmioSobre": null, "duracionMin": null, "actividad": "",
                "haceCuanto": null, "parte": null, "queLoQuito": null, "alApretar": false, "hormigueo": false, "horasDesdeEntreno": null } ],
   "pesos": [ { "fecha", "kg", "tipo": "casa|bio", "nota": "" } ],
+  "pasos": [ { "fecha": "AAAA-MM-DD", "pasos": 8500 } ],
   "medidas": [ { "fecha", "cintura", "cadera", "musloD", "musloI", "brazoDRel", "brazoIRel", "brazoDFuerza", "brazoIFuerza" } ],
   "cintura": [ { "fecha", "cm" } ],
   "fotos": [ { "fecha", "poses": ["frente", "perfil", "espalda", "brazosArriba"] } ],
@@ -256,6 +267,7 @@ Una combinación que se registra con un toque, escalable (½, 1, 1½).
 ```
 
 - `historialDias`: totales de días anteriores a la app (solo para promedios).
+- `pasos`: el total del día que marca el celular o el reloj (la app no lo lee sola: se anota a mano). Uno por fecha: anotar otra vez el mismo día lo reemplaza. El promedio de la semana es el de los días anotados.
 - Las sesiones importadas del bloque anterior van con `soloLectura: true`: no entran a las sugerencias de peso, pero sus pesos sí enseñan las placas reales de cada máquina.
 - Una sesión cargada a mano (contada por la persona, no registrada en la app) va sin `soloLectura` para que cuente, con `inicio: null` y `fin` con solo la fecha (`"AAAA-MM-DD"`): así cuenta como terminada y la duración queda sin dato. Lo que no se sabe va vacío (`reps: null`, `dolor: null`, `seriesPlan: null`) y nunca inventado; con `seriesPlan: null` la app no sube el peso y dice que faltan datos de esa sesión. Un ejercicio que no se reportó va con `series: []` y una nota.
 - `dolor` con `momento: "evento"` (lo registrado fuera del gimnasio) admite todos los campos que un plan puede exigir por aparición: `valor` 0–10, `duracionMin`, `actividad`, `haceCuanto` (desde cuándo venía esa actividad), `parte` (ubicación dentro de la zona), `queLoQuito` (qué lo hizo ceder), `alApretar` (si la presión reproduce la molestia en ese instante) y `hormigueo`. `horasDesdeEntreno` lo calcula la app sola: horas entre el `fin` de la última sesión de los tipos que lista `zonas[z].sesiones` y el instante del registro; `null` si no hay ninguna previa. La ayuda de la hoja sale de `textos.evento{Zona}`.

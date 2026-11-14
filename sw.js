@@ -1,6 +1,6 @@
 // Service worker: guarda todos los archivos para que la app funcione sin internet.
 // Al cambiar VERSION, la app muestra "Versión nueva: toca para actualizar".
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const CACHE = `app-registro-${VERSION}`;
 const ARCHIVOS = [
   './',
@@ -24,6 +24,7 @@ const ARCHIVOS = [
   './src/fechas.js',
   './src/hoy.js',
   './src/navegar.js',
+  './src/pasos.js',
   './src/progresion.js',
   './src/resumen.js',
   './src/ui.js',

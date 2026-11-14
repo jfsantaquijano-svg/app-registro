@@ -6,10 +6,10 @@ App web instalable (PWA) para anotar **comida, entreno y cuerpo**. Funciona sin 
 
 ## Qué hace
 
-- **Hoy:** tipo de día (los que traiga el archivo), botones de todos los días arriba, "Planear el día", barras de calorías, proteína, grasa y carbos contra la meta, lo que falta, grasa que se ve y que no se ve, avisos del día, resumen de la semana (también de semanas anteriores) y "Copiar para Claude".
+- **Hoy:** tipo de día (los que traiga el archivo; si el plan no tiene días de entreno, no lo pregunta), botones de todos los días arriba, pasos de hoy contra la meta, "Planear el día", barras de calorías, proteína, grasa y carbos contra la meta, lo que falta, grasa que se ve y que no se ve, avisos del día, resumen de la semana (también de semanas anteriores) y "Copiar para Claude".
 - **Comida:** el día en 4 momentos, buscador sin tildes con favoritos y recientes primero, gramos o unidades, crudo o ya cocido, recargo de restaurante, platos guardados (½, 1 o 1½), producto nuevo desde la etiqueta (con lector de código de barras si el navegador lo permite) y "Cerrar el día" con una propuesta hecha con lo que hay en casa.
 - **Entreno:** la sesión que sigue en la rotación, semana del bloque, registro por serie (peso, repeticiones, cuántas quedaban, lado), superseries (con "Dejar para el final" para cuando toque esperar un aparato), series al fallo con bajadas, cronómetro de descanso, preguntas por zona (las define el archivo) y peso sugerido para la próxima vez (doble progresión, siempre con pesos que ya se registraron en esa máquina: la app no inventa el salto de la máquina).
-- **Cuerpo:** peso con promedio semanal (lunes a domingo) y gráfica, medidas, fotos, mediciones de composición corporal y enlaces para Google Calendar.
+- **Cuerpo:** peso con promedio semanal (lunes a domingo) y gráfica, pasos por semana, medidas, fotos, mediciones de composición corporal y enlaces para Google Calendar.
 - **Datos (menú ⋮):** exportar e importar la copia, metas, alimentos, platos, rutina y ajustes.
 
 ## Cómo instalarla
@@ -43,7 +43,7 @@ npm test                         # pruebas de cálculos y de punta a punta
 Las pruebas usan el runner de Node y Playwright 1.56.1 con Chromium (pantalla de celular de 412 × 915). Las capturas quedan en `test/capturas/`.
 
 - `index.html`, `estilos.css`, `manifest.webmanifest`, `sw.js` (caché para usarla sin internet y aviso "Versión nueva: toca para actualizar"; al publicar cambios, sube `VERSION`).
-- `src/`: `app.js` (arranque y pestañas), `db.js` (IndexedDB), `estado.js`, `calculos.js`, `cierre.js`, `progresion.js`, `fechas.js`, `copia.js` (formato de importar y exportar), `avisos.js`, `resumen.js`, `ui.js` y una vista por pestaña (`hoy.js`, `comida.js`, `entreno.js`, `cuerpo.js`, `datos.js`).
-- `test/arranque-prueba.json`: datos **de prueba, inventados** (no se parecen a los de nadie).
+- `src/`: `app.js` (arranque y pestañas), `db.js` (IndexedDB), `estado.js`, `calculos.js`, `cierre.js`, `progresion.js`, `fechas.js`, `copia.js` (formato de importar y exportar), `avisos.js`, `resumen.js`, `pasos.js`, `ui.js` y una vista por pestaña (`hoy.js`, `comida.js`, `entreno.js`, `cuerpo.js`, `datos.js`).
+- `test/arranque-prueba.json` y `test/arranque-sin-rutina.json` (alguien que todavía no entrena): datos **de prueba, inventados** (no se parecen a los de nadie).
 
 Este repositorio solo tiene código genérico. Las reglas de cada plan (lado que decide, umbral de dolor, recorridos, recorte, textos y gustos) vienen del archivo de arranque de cada persona, que nunca se sube aquí: `.gitignore` bloquea archivos de arranque, copias y carpetas de datos, y `test/unit/privacidad.test.mjs` revisa los archivos y el historial contra una lista privada que vive fuera del repositorio (se salta si no la encuentra).

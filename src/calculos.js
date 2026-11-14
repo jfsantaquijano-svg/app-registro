@@ -353,16 +353,23 @@ export function promedio(arr) {
   return v.reduce((a, b) => a + b, 0) / v.length;
 }
 
-/** Tipo efectivo del día: el elegido, o entreno si hubo sesión, o descanso. */
-export function tipoEfectivo(dia, huboSesion) {
-  return dia?.tipo || (huboSesion ? 'entreno' : 'descanso');
+/**
+ * Tipo efectivo del día: el elegido, o entreno si hubo sesión, o descanso.
+ * Si las metas no tienen ese tipo (un plan con un solo tipo de día), el primero activo.
+ */
+export function tipoEfectivo(dia, huboSesion, metas = null) {
+  if (dia?.tipo) return dia.tipo;
+  const pref = huboSesion ? 'entreno' : 'descanso';
+  const tipos = metas?.tipos;
+  if (!tipos || tipos[pref]) return pref;
+  return Object.keys(tipos).find((k) => tipos[k]?.activo !== false) || pref;
 }
 
 /**
  * Totales por día para promedios: días de la app (solo los que tienen comida confirmada)
  * más el historial anterior a la app.
  */
-export function diasConTotales({ dias = {}, historialDias = [] }, ajustes, fechasSesion = new Set()) {
+export function diasConTotales({ dias = {}, historialDias = [] }, ajustes, fechasSesion = new Set(), metas = null) {
   const mapa = new Map();
   for (const h of historialDias) {
     if (!h?.fecha) continue;
@@ -371,7 +378,7 @@ export function diasConTotales({ dias = {}, historialDias = [] }, ajustes, fecha
   for (const [fecha, dia] of Object.entries(dias)) {
     const t = totalesDia(dia, ajustes);
     if (!t.nConf) continue;
-    mapa.set(fecha, { fecha, tipo: tipoEfectivo(dia, fechasSesion.has(fecha)), ...t.conf, estimados: t.estimados, cerrado: !!dia.resumen?.cerrado });
+    mapa.set(fecha, { fecha, tipo: tipoEfectivo(dia, fechasSesion.has(fecha), metas), ...t.conf, estimados: t.estimados, cerrado: !!dia.resumen?.cerrado });
   }
   return [...mapa.values()].sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
@@ -396,6 +403,70 @@ export function semanasPeso(pesos) {
     semanas[i].cambio = prev && difDias(prev.lunes, semanas[i].lunes) === 7 ? semanas[i].prom - prev.prom : null;
   }
   return semanas;
+}
+
+// ---------- Pasos ----------
+
+/** "8.540", "8,540" o "8540" → 8540. En pasos no hay decimales: el punto y la coma son de miles. */
+export function numPasos(x) {
+  if (x === null || x === undefined) return null;
+  const s = String(x).trim().replace(/[\s.,']/g, '');
+  if (!/^\d+$/.test(s)) return null;
+  return Number(s);
+}
+
+/** Pasos de cada fecha (si una fecha viene repetida, vale el último registro). */
+export function pasosPorFecha(pasos) {
+  const m = new Map();
+  for (const x of pasos || []) {
+    const n = Number(x?.pasos);
+    if (!x?.fecha || x.pasos === null || x.pasos === undefined || !Number.isFinite(n)) continue;
+    m.set(x.fecha, n);
+  }
+  return m;
+}
+
+/**
+ * Estado de un día frente a la meta de pasos: 'ok' (llegó a la meta), 'cerca' (pasó el mínimo),
+ * 'mal' (quedó por debajo) o, en un día que no ha terminado, 'falta'. Sin meta: null.
+ */
+export function estadoPasos(n, metaPasos, { terminado = true } = {}) {
+  const meta = Number(metaPasos?.meta) || null;
+  if (!meta || n === null || n === undefined) return null;
+  if (n >= meta) return 'ok';
+  const minimo = Number(metaPasos?.minimo) || null;
+  if (minimo && n >= minimo) return 'cerca';
+  return terminado ? 'mal' : 'falta';
+}
+
+/**
+ * Pasos por semana (lunes a domingo): promedio de los días anotados, días en la meta
+ * y días bajo el mínimo (null si el plan no tiene ese número). `hasta`: no cuenta días después.
+ */
+export function semanasPasos(pasos, metaPasos = null, hasta = null) {
+  const meta = Number(metaPasos?.meta) || null;
+  const minimo = Number(metaPasos?.minimo) || null;
+  const grupos = new Map();
+  for (const [fecha, n] of [...pasosPorFecha(pasos).entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    if (hasta && fecha > hasta) continue;
+    const l = lunesDe(fecha);
+    if (!grupos.has(l)) grupos.set(l, []);
+    grupos.get(l).push({ fecha, n });
+  }
+  return [...grupos.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([lunes, dias]) => {
+      const v = dias.map((d) => d.n);
+      return {
+        lunes,
+        domingo: sumarDias(lunes, 6),
+        dias,
+        prom: promedio(v),
+        n: v.length,
+        enMeta: meta ? v.filter((x) => x >= meta).length : null,
+        bajoMinimo: minimo ? v.filter((x) => x < minimo).length : null,
+      };
+    });
 }
 
 /** true si el promedio bajó más de 1 kg por semana dos semanas seguidas. */

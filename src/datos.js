@@ -3,7 +3,7 @@ import { S, guardar, estaVacia, cargarCopia, copiaActual, invalidarIndice, uid }
 import * as db from './db.js';
 import { leerTextoCopia, validarCopia, actualizarPlan, nombreArchivoCopia, normalizarCopia } from './copia.js';
 import { hoy, isoLocal, fechaCorta, fechaDeIso, horaLocal, difDias, fmtDuracion } from './fechas.js';
-import { num, fmtKcal, fmtG, sinTildes, buscarAlimentos } from './calculos.js';
+import { num, numPasos, fmtKcal, fmtG, sinTildes, buscarAlimentos } from './calculos.js';
 import { h, montar, hoja, confirmar, aviso, chips, campo, inputNum, inputTexto, casilla, seccion, vacio, descargar } from './ui.js';
 import { abrirProductoNuevo } from './comida.js';
 import { abrirCalendario } from './cuerpo.js';
@@ -255,7 +255,7 @@ function renderMetas(cont) {
   const activos = {};
   const tarjetas = Object.entries(S.metas.tipos).map(([k, m]) => {
     campos[k] = {};
-    if ('activo' in m) activos[k] = casilla('Se puede elegir en "¿Hoy entrenas?"', { checked: m.activo !== false, testid: `meta-${k}-activo` });
+    if ('activo' in m) activos[k] = casilla('Se puede elegir como tipo de día', { checked: m.activo !== false, testid: `meta-${k}-activo` });
     return seccion(
       m.nombre || k,
       activos[k] || null,
@@ -276,10 +276,20 @@ function renderMetas(cont) {
     ['grasaMinima', 'Grasa mínima del día (g)'],
   ];
   const cg = {};
+  const mp = S.metas.pasos || {};
+  const cp = {
+    meta: inputNum({ valor: mp.meta, decimal: false, placeholder: 'Ej. 10000', etiqueta: 'Meta de pasos al día', testid: 'meta-pasos-meta' }),
+    minimo: inputNum({ valor: mp.minimo, decimal: false, placeholder: 'Opcional', etiqueta: 'Mínimo de pasos al día', testid: 'meta-pasos-minimo' }),
+  };
   montar(
     cont,
     h('h2', { class: 'mb' }, 'Metas'),
     tarjetas,
+    seccion(
+      'Pasos al día',
+      h('div', { class: 'dos-col' }, campo('Meta', cp.meta), campo('Mínimo', cp.minimo)),
+      h('p', { class: 'suave chico' }, 'Vacío = sin ese número. El mínimo es opcional.'),
+    ),
     seccion(
       'Reglas',
       generales.map(([k, n]) => {
@@ -294,6 +304,12 @@ function renderMetas(cont) {
         type: 'button',
         testid: 'metas-guardar',
         onclick: async () => {
+          // Primero se revisan los pasos: si algo está mal, no se cambia nada.
+          const pm = numPasos(cp.meta.value);
+          const pmin = numPasos(cp.minimo.value);
+          if (cp.meta.value.trim() && pm == null) return aviso('La meta de pasos va solo con números.');
+          if (cp.minimo.value.trim() && pmin == null) return aviso('El mínimo de pasos va solo con números.');
+          if (pm && pmin && pmin > pm) return aviso('El mínimo de pasos no puede pasar la meta.');
           for (const [k, m] of Object.entries(S.metas.tipos)) {
             for (const [c, inp] of Object.entries(campos[k])) {
               const v = num(inp.value);
@@ -305,6 +321,11 @@ function renderMetas(cont) {
             if (v != null) S.metas[k] = v;
           }
           for (const [k, c] of Object.entries(activos)) S.metas.tipos[k].activo = c.input.checked;
+          if (pm) {
+            S.metas.pasos = { ...(S.metas.pasos || {}), meta: pm };
+            if (pmin) S.metas.pasos.minimo = pmin;
+            else delete S.metas.pasos.minimo;
+          } else delete S.metas.pasos;
           await guardar('metas');
           aviso('Metas guardadas.');
         },

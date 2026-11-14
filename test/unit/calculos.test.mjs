@@ -25,6 +25,10 @@ import {
   signo,
   plural,
   generoDe,
+  numPasos,
+  semanasPasos,
+  estadoPasos,
+  tipoEfectivo,
 } from '../../src/calculos.js';
 import { lunesDe, sumarDias, difDias } from '../../src/fechas.js';
 
@@ -314,4 +318,65 @@ test('con el día cerrado y todo dentro de la meta no dice "te falta"', () => {
   // Cerrado pero con algo mal: se sigue viendo lo que faltó
   assert.equal(textoFalta({ cerrado: true, estados: ['ok', 'mal', 'ok', 'ok'], faltan: ['30 P'] }), null);
   assert.equal(textoFalta({ cerrado: false, estados: todoOk, faltan: [] }), 'Llegaste a la meta.');
+});
+
+test('pasos: el punto y la coma son de miles; lo que no es un número entero no vale', () => {
+  assert.equal(numPasos('8.540'), 8540);
+  assert.equal(numPasos('10,000'), 10000);
+  assert.equal(numPasos(' 7500 '), 7500);
+  assert.equal(numPasos(0), 0);
+  assert.equal(numPasos(''), null);
+  assert.equal(numPasos('7.5k'), null);
+  assert.equal(numPasos('-300'), null);
+  assert.equal(numPasos(null), null);
+});
+
+test('pasos por semana: promedio de los días anotados, días en la meta y bajo el mínimo', () => {
+  const pasos = [
+    { fecha: '2030-01-07', pasos: 8000 },
+    { fecha: '2030-01-08', pasos: 11000 },
+    // La misma fecha otra vez: vale el último registro
+    { fecha: '2030-01-08', pasos: 12000 },
+    { fecha: '2030-01-10', pasos: 5000 },
+    { fecha: '2030-01-13', pasos: null },
+    { fecha: '2030-01-14', pasos: 9000 },
+  ];
+  const [a, b] = semanasPasos(pasos, { meta: 10000, minimo: 7000 });
+  assert.equal(a.lunes, '2030-01-07');
+  assert.equal(a.domingo, '2030-01-13');
+  assert.equal(a.n, 3);
+  assert.equal(Math.round(a.prom), 8333);
+  assert.equal(a.enMeta, 1);
+  assert.equal(a.bajoMinimo, 1);
+  assert.equal(b.lunes, '2030-01-14');
+  // Sin mínimo en el plan: ese conteo no existe (no es cero)
+  assert.equal(semanasPasos(pasos, { meta: 10000 })[0].bajoMinimo, null);
+  // Sin meta: tampoco se cuentan días en la meta
+  assert.equal(semanasPasos(pasos)[0].enMeta, null);
+  // Hasta un día: no cuenta los de después
+  assert.equal(semanasPasos(pasos, null, '2030-01-08')[0].n, 2);
+  assert.equal(semanasPasos(pasos, null, '2030-01-08').length, 1);
+});
+
+test('estado de los pasos frente a la meta', () => {
+  const mp = { meta: 10000, minimo: 7000 };
+  assert.equal(estadoPasos(10000, mp), 'ok');
+  assert.equal(estadoPasos(7000, mp), 'cerca');
+  assert.equal(estadoPasos(6999, mp), 'mal');
+  assert.equal(estadoPasos(6999, mp, { terminado: false }), 'falta');
+  assert.equal(estadoPasos(9000, { meta: 10000 }), 'mal');
+  assert.equal(estadoPasos(9000, null), null);
+  assert.equal(estadoPasos(null, mp), null);
+});
+
+test('tipo de día sin elegir: entreno o descanso; si el plan no los tiene, el primero activo', () => {
+  const conEntreno = { tipos: { entreno: {}, descanso: {} } };
+  assert.equal(tipoEfectivo(null, false, conEntreno), 'descanso');
+  assert.equal(tipoEfectivo(null, true, conEntreno), 'entreno');
+  assert.equal(tipoEfectivo({ tipo: 'viaje' }, true, conEntreno), 'viaje');
+  const unSolo = { tipos: { pausa: { activo: false }, normal: {}, viaje: {} } };
+  assert.equal(tipoEfectivo(null, false, unSolo), 'normal');
+  assert.equal(tipoEfectivo(null, true, unSolo), 'normal');
+  // Sin metas, como antes
+  assert.equal(tipoEfectivo(null, false), 'descanso');
 });

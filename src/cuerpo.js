@@ -1,8 +1,9 @@
-// Cuerpo: peso con promedio semanal, cintura, cinta mensual, fotos, bioimpedancias y calendario.
+// Cuerpo: peso con promedio semanal, pasos, cintura, cinta mensual, fotos, bioimpedancias y calendario.
 import { S, guardar } from './estado.js';
 import { hoy, sumarDias, difDias, diaMes, fechaCorta, parseFecha, fechaCalendario, diaSemana } from './fechas.js';
 import { num, r1, semanasPeso, bajadaRapida, proximaComidaLibre, fechaCoincide, signo, plural } from './calculos.js';
 import { h, montar, hoja, confirmar, aviso, stepper, chips, campo, inputNum, inputTexto, casilla, seccion, vacio } from './ui.js';
+import { seccionPasos } from './pasos.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 function s(tag, attrs = {}, ...hijos) {
@@ -433,6 +434,7 @@ export function render(cont) {
         : null,
       bio.length ? h('p', { class: 'suave chico' }, `Pesos de bioimpedancia (aparte): ${bio.map((p) => `${fechaCorta(p.fecha)} ${p.kg}`).join(', ')}`) : null,
     ),
+    seccionPasos(),
     seccion(
       'Cintura de la semana (opcional)',
       h(

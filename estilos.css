@@ -184,6 +184,10 @@ textarea.input { min-height: 80px; }
 .est-cerca .barra-num b { color: var(--amarillo); }
 
 .te-falta { font-size: 16px; padding: 8px 12px; background: var(--sup2); border-radius: 12px; margin-bottom: 8px; }
+/* Pasos de hoy: toda la tarjeta se toca para anotarlos */
+.pasos-toque { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; }
+.pasos-toque .te-falta { margin-bottom: 0; }
+.tarjeta .acciones { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-top: 10px; }
 .grasas { display: flex; gap: 8px; }
 .grasas > div { flex: 1; background: var(--sup2); border-radius: 12px; padding: 8px 10px; font-size: 14px; }
 .grasas b { font-size: 18px; display: block; }

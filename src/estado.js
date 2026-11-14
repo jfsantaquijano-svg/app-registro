@@ -72,7 +72,8 @@ export function estaVacia() {
     !S.platos.length &&
     !Object.keys(S.reg.dias).length &&
     !S.reg.sesiones.length &&
-    !S.reg.pesos.length
+    !S.reg.pesos.length &&
+    !S.reg.pasos.length
   );
 }
 
@@ -120,10 +121,21 @@ export function invalidarIndice() {
   _indice = null;
 }
 
+/**
+ * Tipo de día que se usa sin preguntar: en un plan sin días de entreno (sin el tipo `entreno` activo)
+ * no se pregunta "¿Hoy entrenas?". Es `descanso` si existe, o el primer tipo activo. Con entreno: null.
+ */
+export function tipoSinPreguntar() {
+  const tipos = S.metas?.tipos;
+  if (!tipos || !Object.keys(tipos).length) return null;
+  if (tipos.entreno && tipos.entreno.activo !== false) return null;
+  return tipoEfectivo(null, false, S.metas);
+}
+
 export function getDia(fecha, crear = false) {
   let d = S.reg.dias[fecha];
   if (!d && crear) {
-    d = { tipo: null, comidas: [], omega3: !!S.ajustes?.omega3?.activo, notas: '', resumen: null };
+    d = { tipo: tipoSinPreguntar(), comidas: [], omega3: !!S.ajustes?.omega3?.activo, notas: '', resumen: null };
     S.reg.dias[fecha] = d;
   }
   return d || null;
@@ -135,7 +147,7 @@ export function fechasConSesion() {
 
 export function tipoDelDia(fecha) {
   const d = getDia(fecha);
-  return tipoEfectivo(d, fechasConSesion().has(fecha));
+  return tipoEfectivo(d, fechasConSesion().has(fecha), S.metas);
 }
 
 export function metaDelDia(fecha) {
@@ -144,6 +156,12 @@ export function metaDelDia(fecha) {
 
 export function totalesDelDia(fecha) {
   return totalesDia(getDia(fecha), S.ajustes);
+}
+
+/** Registro de pasos de una fecha (o null). */
+export function pasosDe(fecha) {
+  for (let i = S.reg.pasos.length - 1; i >= 0; i--) if (S.reg.pasos[i]?.fecha === fecha) return S.reg.pasos[i];
+  return null;
 }
 
 export function diasDesdeCopia() {

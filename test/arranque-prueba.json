@@ -150,6 +150,10 @@
     "diaModeloDe": "descanso"
    }
   },
+  "pasos": {
+   "meta": 8000,
+   "minimo": 6000
+  },
   "diaAltoKcal": 150,
   "reglaDeOroP": 150,
   "grasaMinima": 50,

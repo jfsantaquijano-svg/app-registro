@@ -1,11 +1,12 @@
 // Hoy: la pantalla que se abre siempre.
-import { S, guardar, getDia, diasDesdeCopia, sesionActiva, estaVacia } from './estado.js';
+import { S, guardar, getDia, diasDesdeCopia, sesionActiva, estaVacia, tipoSinPreguntar, tipoDelDia } from './estado.js';
 import { hoy, horaLocal, diaMes, sumarDias, lunesDe } from './fechas.js';
 import { fmtKcal, fmtG, metaDelTipo, MOMENTOS, NOMBRE_MOMENTO, sumar, signo, plural } from './calculos.js';
 import { h, montar, chips, escala010, casilla, seccion, aviso, copiarTexto } from './ui.js';
 import { calcularAvisos, resaltarPeso } from './avisos.js';
 import { resumenDeSemana, textoParaClaude } from './resumen.js';
 import { bloqueBarras, opcionesTipo, fijarTipo, elegirTipo, planearDia, abrirCerrarDia, confirmarConDeshacer } from './comida.js';
+import { tarjetaPasos, hayPasos, pasosDeSemana } from './pasos.js';
 import { siguienteSesion } from './progresion.js';
 import { abrirPeso } from './cuerpo.js';
 import { exportarCopia, pantallaBienvenida } from './datos.js';
@@ -81,6 +82,7 @@ function tarjetaAviso(av, fecha) {
 function tarjetaResumen(fecha, cont) {
   const ref = sumarDias(lunesDe(fecha), 7 * semanaVista);
   const r = resumenDeSemana(ref, fecha);
+  const ps = hayPasos() ? pasosDeSemana(ref, fecha) : null;
   const cambio = r.pesoCambio == null ? '' : ` · ${signo(r.pesoCambio)} contra la semana anterior (${r.pesoAnterior.toFixed(2)})`;
   const mover = (n) => () => {
     semanaVista = Math.min(0, semanaVista + n);
@@ -113,6 +115,9 @@ function tarjetaResumen(fecha, cont) {
         h('dd', { class: r.diasAltos.length > 1 ? 'rojo' : '' }, String(r.diasAltos.length)),
         h('dt', {}, 'Días con registro'),
         h('dd', {}, String(r.dias.length)),
+        ps ? h('dt', {}, 'Pasos promedio') : null,
+        ps ? h('dd', { testid: 'pasos-promedio' }, ps.prom != null ? `${fmtKcal(ps.prom)} (${plural(ps.n, 'día', 'días')})` : '—') : null,
+        ps?.n && ps.enMeta != null ? h('dd', { class: 'resumen-ancho suave chico', testid: 'pasos-en-meta' }, `en la meta: ${ps.enMeta} de ${ps.n}`) : null,
       ),
       r.hoyFuera ? h('p', { class: 'suave chico mt', testid: 'hoy-fuera' }, 'Hoy entra a los promedios al cerrar el día.') : null,
     ),
@@ -177,6 +182,11 @@ export function render(cont) {
   // La tarjeta roja de copia ya avisa: la franja de arriba no se pinta de rojo también.
   const avisoCopia = avisos.some((a) => a.tipo === 'copia');
   const pesoResaltado = resaltarPeso(fecha);
+  // Sin días de entreno en el plan, no se pregunta "¿Hoy entrenas?": el tipo de día ya está dado.
+  const tipoAuto = tipoSinPreguntar();
+  const hayTipos = Object.keys(S.metas?.tipos || {}).length > 0;
+  // Sin rutina no hay botón de entrenar (la pestaña Entreno sigue ahí).
+  const verEntrenar = !!(S.rutina || activa);
   montar(
     cont,
     h(
@@ -185,7 +195,9 @@ export function render(cont) {
       h('span', {}, dc == null ? 'Última copia: nunca' : dc === 0 ? 'Última copia: hoy' : `Última copia: hace ${dc} ${dc === 1 ? 'día' : 'días'}`),
       h('button', { class: 'btn-texto', type: 'button', testid: 'hacer-copia', onclick: () => exportarCopia() }, 'Hacer copia'),
     ),
-    !d?.tipo
+    !hayTipos
+      ? null
+      : !d?.tipo && !tipoAuto
       ? seccion(
           '¿Hoy entrenas?',
           chips({
@@ -199,7 +211,7 @@ export function render(cont) {
           'div',
           { class: 'tipo-dia' },
           h('span', { class: 'suave' }, 'Hoy:'),
-          h('button', { class: 'chip sel', type: 'button', testid: 'tipo-actual', onclick: () => elegirTipo(fecha) }, metaDelTipo(S.metas, d.tipo)?.nombre || d.tipo),
+          h('button', { class: 'chip sel', type: 'button', testid: 'tipo-actual', onclick: () => elegirTipo(fecha) }, metaDelTipo(S.metas, tipoDelDia(fecha))?.nombre || d?.tipo || tipoAuto),
         ),
     // Los botones de todos los días van arriba, a la vista sin bajar la pantalla.
     h(
@@ -209,14 +221,17 @@ export function render(cont) {
       !(d?.comidas || []).length
         ? h('button', { class: 'btn btn-sec btn-grande', type: 'button', testid: 'btn-planear', onclick: () => planearDia(fecha) }, '📋 Planear')
         : h('button', { class: 'btn btn-sec btn-grande', type: 'button', testid: 'btn-ver-comida', onclick: () => ir('comida') }, '🍽️ Ver el día'),
-      h(
-        'button',
-        { class: `btn btn-sec btn-grande${activa || nomSig ? ' btn-dos' : ''}`, type: 'button', testid: 'btn-entrenar', onclick: () => ir('entreno') },
-        h('span', {}, activa ? 'Volver a la sesión' : entrenoHecho ? 'Ya entrenaste hoy' : 'Entrenar'),
-        activa || nomSig ? h('span', { class: 'btn-sub' }, activa ? activa.nombre : entrenoHecho ? `La próxima: ${nomSig}` : nomSig) : null,
-      ),
-      h('button', { class: 'btn btn-sec btn-grande', type: 'button', testid: 'btn-cerrar', onclick: () => abrirCerrarDia(fecha) }, '✅ Cerrar el día'),
+      verEntrenar
+        ? h(
+            'button',
+            { class: `btn btn-sec btn-grande${activa || nomSig ? ' btn-dos' : ''}`, type: 'button', testid: 'btn-entrenar', onclick: () => ir('entreno') },
+            h('span', {}, activa ? 'Volver a la sesión' : entrenoHecho ? 'Ya entrenaste hoy' : 'Entrenar'),
+            activa || nomSig ? h('span', { class: 'btn-sub' }, activa ? activa.nombre : entrenoHecho ? `La próxima: ${nomSig}` : nomSig) : null,
+          )
+        : null,
+      h('button', { class: `btn btn-sec btn-grande${verEntrenar ? '' : ' doble'}`, type: 'button', testid: 'btn-cerrar', onclick: () => abrirCerrarDia(fecha) }, '✅ Cerrar el día'),
     ),
+    tarjetaPasos(fecha),
     tarjetaPlaneado(fecha),
     avisos.map((a) => tarjetaAviso(a, fecha)),
     bloqueBarras(fecha),

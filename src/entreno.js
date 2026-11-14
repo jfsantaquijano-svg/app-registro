@@ -1306,7 +1306,7 @@ export function render(cont) {
   if (reg) return renderSesion(cont, reg);
   clearInterval(ticker);
   if (!S.rutina?.sesiones?.length) {
-    montar(cont, seccion('Entreno', vacio('Todavía no hay rutina: importa tu archivo de arranque desde el menú ⋮.')));
+    montar(cont, seccion('Entreno', vacio('Todavía no hay rutina. Cuando la tengas, llega en tu archivo con "Actualizar plan" (menú ⋮ → Importar), sin borrar tus registros.')));
     return;
   }
   const sigId = sesionElegida || siguienteSesion(S.rutina, S.reg.sesiones);

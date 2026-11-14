@@ -172,7 +172,7 @@ export function calcularAvisos(fecha, ahora = new Date()) {
 
   // Copia
   const dc = diasDesdeCopia();
-  const hayDatos = Object.keys(S.reg.dias).length || S.reg.sesiones.length || S.reg.pesos.length;
+  const hayDatos = Object.keys(S.reg.dias).length || S.reg.sesiones.length || S.reg.pesos.length || S.reg.pasos.length;
   if (hayDatos && (dc == null || dc > 7)) {
     out.push({ id: 'copia', clase: 'peligro', tipo: 'copia', texto: dc == null ? 'Todavía no has hecho una copia de tus datos.' : `Tu última copia es de hace ${dc} días.` });
   } else if (hayDatos && diaSemana(fecha) === 0 && dc !== 0) {
@@ -196,7 +196,7 @@ export function resaltarPeso(fecha) {
 
 export function diasParaResumen() {
   const fechasSesion = new Set(sesionesValidas(S.reg.sesiones).map((s) => s.fecha));
-  return diasConTotales({ dias: S.reg.dias, historialDias: S.reg.historialDias }, S.ajustes, fechasSesion);
+  return diasConTotales({ dias: S.reg.dias, historialDias: S.reg.historialDias }, S.ajustes, fechasSesion, S.metas);
 }
 
 export { tipoDelDia };
