@@ -1106,6 +1106,7 @@ export function abrirCerrarDia(fecha) {
     const cons = t.conf;
     const soloKP = !!meta.soloKcalYProteina;
     const f = falta(cons, meta);
+    const kcalPasadas = meta.kcal != null && cons.kcal > meta.kcal + toleranciaKcal(S.metas);
     const reglaOro = S.metas?.reglaDeOroP ?? meta.p;
     const conPlan = sumar([cons, t.plan]);
     const planOk = t.nPlan > 0 && planCierra(conPlan, meta, S.metas);
@@ -1116,7 +1117,10 @@ export function abrirCerrarDia(fecha) {
       cont,
       h('p', {}, h('b', {}, 'Llevas: '), lineaMacros(cons, soloKP)),
       h('p', {}, h('b', {}, `Meta (${meta.nombre || ''}): `), lineaMacros({ kcal: meta.kcal, p: meta.p ?? meta.pMin, g: meta.g, c: meta.c }, soloKP)),
-      h('p', { testid: 'cierre-falta' }, h('b', {}, 'Te falta: '), lineaMacros({ kcal: f.kcal, p: f.p, g: f.g ?? 0, c: f.c ?? 0 }, soloKP)),
+      // Con las calorías ya pasadas no se dice "te falta": cualquier cosa que agregue sube el exceso.
+      kcalPasadas
+        ? h('p', { testid: 'cierre-falta' }, h('b', {}, 'Te pasaste: '), `${fmtKcal(cons.kcal - meta.kcal)} kcal.`)
+        : h('p', { testid: 'cierre-falta' }, h('b', {}, 'Te falta: '), lineaMacros({ kcal: f.kcal, p: f.p, g: f.g ?? 0, c: f.c ?? 0 }, soloKP)),
       h('p', { class: 'aviso', testid: 'regla-oro' }, cons.p >= reglaOro ? `Regla de oro: ya llegaste a ${reglaOro} g de proteína. Solo grasa o carbos.` : `Regla de oro: te faltan ${fmtG(reglaOro - cons.p)} g de proteína para ${reglaOro}. La propuesta empieza por ahí.`),
       planOk
         ? h(

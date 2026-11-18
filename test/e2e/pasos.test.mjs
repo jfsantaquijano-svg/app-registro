@@ -208,3 +208,23 @@ test('archivo de arranque con errores: la app los dice antes de cargarlo, se cop
   assert.deepEqual(errores, []);
   await contexto.close();
 });
+
+test('sin meta de pasos: Hoy no muestra la barra, pero Cuerpo deja anotarlos y dice dónde poner la meta', async () => {
+  const { page, contexto, errores } = await nuevaPagina(nav, srv.url);
+  const plan = JSON.parse(readFileSync(ARRANQUE, 'utf8'));
+  delete plan.metas.pasos;
+  const ruta = path.join(DESCARGAS, 'plan-sin-meta-pasos.txt');
+  writeFileSync(ruta, JSON.stringify(plan));
+  await importarArchivo(page, ruta);
+  await page.getByTestId('btn-comida').waitFor();
+  assert.equal(await page.getByTestId('tarjeta-pasos').count(), 0);
+  await page.locator('nav.tabs [data-tab="cuerpo"]').click();
+  assert.match(await page.getByTestId('pasos-sin-meta').innerText(), /Ponla en ⋮ → 🎯 Metas → "Pasos al día"/);
+  await anotarPasos(page, 'cuerpo-pasos', '6.300');
+  await esperarAviso(page, 'Promedio de la semana: 6.300 pasos (1 día)');
+  // Con pasos anotados, la barra ya sale en Hoy (sin meta, sin línea de meta)
+  await page.locator('nav.tabs [data-tab="hoy"]').click();
+  assert.equal(await page.getByTestId('pasos-hoy').innerText(), '6.300');
+  assert.deepEqual(errores, []);
+  await contexto.close();
+});

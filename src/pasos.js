@@ -124,16 +124,20 @@ export function tarjetaPasos(fecha) {
   );
 }
 
-/** Sección de Cuerpo: promedio por semana y todos los días (tocar uno lo borra). */
+/**
+ * Sección de Cuerpo: promedio por semana y todos los días (tocar uno lo borra).
+ * Sale siempre, aunque no haya meta: así se encuentra dónde anotar los pasos.
+ */
 export function seccionPasos() {
-  if (!hayPasos()) return null;
   const mp = metaPasos();
   const sem = semanasPasos(S.reg.pasos, mp).slice(-8).reverse();
   const lista = [...S.reg.pasos].sort((a, b) => b.fecha.localeCompare(a.fecha));
   return seccion(
     'Pasos',
     h('button', { class: 'btn btn-primario btn-ancho mb', type: 'button', testid: 'cuerpo-pasos', onclick: () => abrirPasos() }, '👣 Anotar pasos'),
-    mp ? h('p', { class: 'suave chico', testid: 'pasos-meta' }, `Meta: ${fmtKcal(mp.meta)} al día${Number(mp.minimo) > 0 ? ` · mínimo ${fmtKcal(mp.minimo)}` : ''}.`) : null,
+    mp
+      ? h('p', { class: 'suave chico', testid: 'pasos-meta' }, `Meta: ${fmtKcal(mp.meta)} al día${Number(mp.minimo) > 0 ? ` · mínimo ${fmtKcal(mp.minimo)}` : ''}.`)
+      : h('p', { class: 'suave chico', testid: 'pasos-sin-meta' }, 'Todavía no tienes meta de pasos. Ponla en ⋮ → 🎯 Metas → "Pasos al día", y la barra "Pasos de hoy" aparece en Hoy.'),
     sem.length
       ? h(
           'table',

@@ -413,6 +413,12 @@ test('agregar una grasa: propone 1 unidad, cambiar de unidad no convierte lo pro
   // Con las calorías pasadas, debajo de las barras no dice "Te falta"
   assert.match(await page.getByTestId('te-falta').innerText(), /^Ya pasaste las calorías del día por [\d.]+ kcal\.$/);
   await captura(page, '08-calorias-pasadas');
+  // Y en "Cerrar el día" tampoco: dice cuánto se pasó y no propone nada más
+  await page.getByTestId('cerrar-dia').click();
+  await page.getByTestId('hoja-cerrar').waitFor();
+  assert.match(await page.getByTestId('cierre-falta').innerText(), /^Te pasaste: [\d.]+ kcal\.$/);
+  await page.getByTestId('hoja-cerrar').getByText('Ya no queda espacio: no hace falta agregar nada.').waitFor();
+  await page.locator('.hoja').last().getByRole('button', { name: 'Cerrar', exact: true }).click();
   assert.deepEqual(errores, []);
   await contexto.close();
 });
