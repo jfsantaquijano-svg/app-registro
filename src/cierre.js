@@ -260,11 +260,35 @@ export function textoCantidad(a, cantidad, unidad, estado) {
   return txt;
 }
 
-function plural(s) {
+/** Palabras desde las que ya no se pasa a plural ("vaso de 200 ml" → "vasos de 200 ml"). */
+const SIN_PLURAL_DESDE = new Set(['de', 'del', 'con', 'sin', 'para', 'en', 'a', 'al', 'por', 'y', 'o']);
+
+function pluralPalabra(w) {
+  if (!/^[a-záéíóúüñ]+$/i.test(w) || w.length < 3 || /^und$/i.test(w)) return w;
+  if (/[aeiouáéó]$/i.test(w)) return `${w}s`;
+  if (/[sx]$/i.test(w)) return w;
+  if (/z$/i.test(w)) return w.replace(/z$/i, 'ces');
+  // porción → porciones: la tilde de la última sílaba se va
+  // Préstamos que terminan en otra consonante (scoop, clip): solo s
+  if (!/[nlrdjy]$/i.test(w)) return `${w}s`;
+  const sinTilde = w.replace(/([áéíóú])([nsl])$/i, (_, v, c) => `${'aeiou'['áéíóú'.indexOf(v.toLowerCase())]}${c}`);
+  return `${sinTilde}es`;
+}
+
+/** Plural del nombre de una unidad: cada palabra hasta la primera preposición ("cucharadita medidora" → "cucharaditas medidoras"). */
+export function plural(s) {
   if (!s) return s;
-  if (/[aeiouáéó]$/i.test(s)) return `${s}s`;
-  if (/[^s]$/i.test(s) && !s.includes(' ')) return `${s}es`;
-  return s;
+  let parar = false;
+  return s
+    .split(' ')
+    .map((w) => {
+      if (parar || SIN_PLURAL_DESDE.has(w.toLowerCase()) || /\d/.test(w)) {
+        parar = true;
+        return w;
+      }
+      return pluralPalabra(w);
+    })
+    .join(' ');
 }
 
 /** Tabla final ✅ ⚠️ ❌ al cierre. */

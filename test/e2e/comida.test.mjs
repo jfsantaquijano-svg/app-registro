@@ -353,3 +353,66 @@ test('cambiar lo planeado por un plato incompleto pide el dato, y la búsqueda n
   assert.deepEqual(errores, []);
   await contexto.close();
 });
+
+test('agregar una grasa: propone 1 unidad, cambiar de unidad no convierte lo propuesto, lo exagerado pide confirmar, el plural sale bien y con las calorías pasadas no pide más', async () => {
+  const { page, contexto, errores } = await nuevaPagina(nav, srv.url);
+  await importarArranque(page);
+  await page.locator('nav.tabs [data-tab="comida"]').click();
+
+  // La primera vez propone 1 cucharada, no 100 g
+  await page.getByTestId('agregar-desayuno').click();
+  await page.getByTestId('buscar').fill('mani');
+  await page.getByTestId('alimento-mantequilla-mani').click();
+  assert.equal(await page.getByTestId('cantidad').inputValue(), '1');
+  assert.equal(await page.getByTestId('unidad-und').getAttribute('aria-pressed'), 'true');
+  // A gramos convierte (1 cucharada = 16 g) y de vuelta, sin haber tocado el número, vuelve a 1
+  await page.getByTestId('unidad-g').click();
+  assert.equal(await page.getByTestId('cantidad').inputValue(), '16');
+  await page.getByTestId('unidad-und').click();
+  assert.equal(await page.getByTestId('cantidad').inputValue(), '1');
+
+  // Una cantidad exagerada pide confirmar; "Corregir" vuelve a la cantidad sin guardar
+  await page.getByTestId('cantidad').fill('8');
+  await page.getByTestId('cantidad').press('Tab');
+  await page.getByTestId('guardar-item').click();
+  await page.getByTestId('confirmar').getByText('8 cucharadas de Mantequilla de maní son 755 kcal, el 40 % de tu meta del día.').waitFor();
+  await page.getByTestId('confirmar').getByRole('button', { name: 'Corregir' }).click();
+  await page.getByTestId('confirmar').waitFor({ state: 'detached' });
+  assert.equal(await page.getByTestId('hoja-cantidad').count(), 1);
+  await page.getByTestId('cantidad').fill('1');
+  await page.getByTestId('cantidad').press('Tab');
+  await page.getByTestId('guardar-item').click();
+  await esperarAviso(page, 'Agregado: Mantequilla de maní');
+  await page.getByText('1 cucharada · 94 kcal').first().waitFor();
+
+  // Una grasa sin unidad no trae cantidad propuesta: hay que escribirla
+  await page.getByTestId('agregar-merienda').click();
+  await page.getByTestId('buscar').fill('nueces');
+  await page.getByTestId('alimento-nueces').click();
+  assert.equal(await page.getByTestId('cantidad').inputValue(), '');
+  await page.getByTestId('guardar-item').click();
+  await esperarAviso(page, 'Escribe la cantidad');
+  // 300 g de nueces: se confirma porque sí fue así, y el día pasa las calorías
+  await page.getByTestId('cantidad').fill('300');
+  await page.getByTestId('cantidad').press('Tab');
+  await page.getByTestId('guardar-item').click();
+  await page.getByTestId('confirmar').getByText(/300 g de Nueces son 1\.962 kcal/).waitFor();
+  await page.getByTestId('confirmar-si').click();
+  await esperarAviso(page, 'Agregado: Nueces');
+
+  // Plural de una unidad que termina en n
+  await page.getByTestId('agregar-cena').click();
+  await page.getByTestId('buscar').fill('batido');
+  await page.getByTestId('alimento-batido-prueba').click();
+  await page.getByTestId('cantidad').fill('2');
+  await page.getByTestId('cantidad').press('Tab');
+  await page.getByTestId('guardar-item').click();
+  await esperarAviso(page, 'Agregado: Batido');
+  await page.getByText('2 porciones · 220 kcal').first().waitFor();
+
+  // Con las calorías pasadas, debajo de las barras no dice "Te falta"
+  assert.match(await page.getByTestId('te-falta').innerText(), /^Ya pasaste las calorías del día por [\d.]+ kcal\.$/);
+  await captura(page, '08-calorias-pasadas');
+  assert.deepEqual(errores, []);
+  await contexto.close();
+});

@@ -12,6 +12,7 @@ import {
   fmtG,
   unidadesDe,
   unidadPorDefecto,
+  cantidadPropuesta,
   convertirEstado,
   estadoNutriente,
   falta,
@@ -400,7 +401,7 @@ export function bloqueBarras(fecha, { compacto = false } = {}) {
     h(
       'div',
       { class: 'te-falta', testid: 'te-falta' },
-      textoFalta({ cerrado, estados, faltan: partes }) ?? h('span', {}, 'Te falta: ', h('b', {}, partes.join(' · '))),
+      textoFalta({ cerrado, estados, faltan: partes, kcalSobre: estados[0] === 'cerca' || estados[0] === 'mal' ? t.conf.kcal - meta.kcal : null }) ?? h('span', {}, 'Te falta: ', h('b', {}, partes.join(' · '))),
     ),
     !compacto && !meta.soloKcalYProteina
       ? h(
@@ -571,11 +572,22 @@ function opcionesRecargo() {
 export function abrirCantidad(hjPadre, fecha, a, { momento, editar = null } = {}) {
   const hj = hoja({ titulo: a.nombre, testid: 'hoja-cantidad' });
   const unidades = unidadesDe(a);
-  let unidad = editar?.unidad && unidades.includes(editar.unidad) ? editar.unidad : unidades[0];
+  // Se propone lo último que anotó de este alimento; la primera vez, 1 unidad si el alimento la tiene.
+  const ultimo = editar ? null : ultimoUso(a.id);
+  let unidad =
+    editar?.unidad && unidades.includes(editar.unidad)
+      ? editar.unidad
+      : ultimo && unidades.includes(ultimo.unidad)
+        ? ultimo.unidad
+        : a.gramosUnidad && unidades.includes('und')
+          ? 'und'
+          : unidades[0];
   let estado = editar?.estado || (a.coccion ? ultimoEstado(a.id) || 'cocido' : null);
   let recargo = editar ? editar.recargo || '' : a.restaurante?.recargo || '';
   let mom = editar?.momento || momento || momentoPorHora();
-  const cantidadInicial = editar?.cantidad ?? (a.libre ? null : unidad === 'und' ? 1 : ultimaCantidad(a.id) ?? 100);
+  const cantidadInicial = editar?.cantidad ?? (a.libre ? null : cantidadPropuesta(a, unidad, ultimo));
+  // ¿La cantidad la escribió o la movió la persona? Si no, cambiar de unidad no convierte la propuesta.
+  let tocada = !!editar;
   // En unidades, por debajo de 1 va de media en media (½ aderezo, ½ porción); en gramos, de 5 o de 10.
   const menos = (v0) => {
     const v = v0 ?? 0;
@@ -594,8 +606,12 @@ export function abrirCantidad(hjPadre, fecha, a, { momento, editar = null } = {}
     etiqueta: 'Cantidad',
     menos,
     mas,
-    alCambiar: () => pintarPreview(),
+    alCambiar: () => {
+      tocada = true;
+      pintarPreview();
+    },
   });
+  cant.input.addEventListener('input', () => (tocada = true));
   const est = casilla('Dato estimado (el día queda "con estimados")', { checked: editar ? editar.estimado : !!a.estimado, testid: 'estimado' });
   const preview = h('div', { class: 'preview-macros', testid: 'preview' });
   const conversion = h('p', { class: 'suave chico', testid: 'conversion' });
@@ -628,7 +644,9 @@ export function abrirCantidad(hjPadre, fecha, a, { momento, editar = null } = {}
           testid: 'unidad',
           alElegir: (v) => {
             const q = cant.valor();
-            if (q != null && a.gramosUnidad) cant.fijar(v === 'g' ? r1(q * a.gramosUnidad) : r1(q / a.gramosUnidad));
+            // Una propuesta que nadie tocó no se convierte: 100 g propuestos no son 22 cucharaditas.
+            if (!tocada && v === 'und') cant.fijar(1);
+            else if (q != null && a.gramosUnidad) cant.fijar(v === 'g' ? r1(q * a.gramosUnidad) : r1(q / a.gramosUnidad));
             unidad = v;
             cant.querySelector('.stepper-suf').textContent = v === 'und' ? a.unidadNombre || 'und' : 'g';
             pintarPreview();
@@ -667,6 +685,8 @@ export function abrirCantidad(hjPadre, fecha, a, { momento, editar = null } = {}
       aviso('Escribe la cantidad.');
       return;
     }
+    const igualQueAntes = editar && editar.cantidad === q && editar.unidad === unidad;
+    if (!a.libre && !igualQueAntes && !(await cantidadRevisada(fecha, a, { cantidad: q, unidad, estado, recargo: recargo || null }))) return;
     const d = getDia(fecha, true);
     const nuevo = comidaDesdeAlimento(a, { cantidad: q, unidad, estado, recargo: recargo || null, estimado: est.input.checked }, mom, false);
     if (editar) {
@@ -756,12 +776,39 @@ function ultimoEstado(id) {
   return null;
 }
 
-function ultimaCantidad(id) {
+/** Lo último que anotó de un alimento: { cantidad, unidad } (o null). */
+function ultimoUso(id) {
   for (const f of Object.keys(S.reg.dias).sort().reverse()) {
-    const c = [...S.reg.dias[f].comidas].reverse().find((x) => x.alimentoId === id && !x.planeado && x.unidad === 'g');
-    if (c) return c.cantidad;
+    const c = [...S.reg.dias[f].comidas].reverse().find((x) => x.alimentoId === id && !x.planeado && x.cantidad > 0 && (x.unidad === 'g' || x.unidad === 'und'));
+    if (c) return { cantidad: c.cantidad, unidad: c.unidad };
   }
   return null;
+}
+
+/** Parte de la meta del día que, en un solo alimento, pide confirmar la cantidad. */
+const PARTE_KCAL_GRANDE = 0.35;
+const PARTE_GRASA_GRANDE = 0.5;
+
+/**
+ * Un solo alimento con más del 35 % de las calorías del día, o con más del 50 % del tope de grasa,
+ * casi siempre es una cantidad mal escrita (un cero de más, la unidad equivocada): se pregunta antes de guardar.
+ * Los platos de restaurante no se revisan: un plato grande es normal.
+ */
+async function cantidadRevisada(fecha, a, uso) {
+  const meta = metaDelDia(fecha);
+  if (!meta?.kcal || a.restaurante || a.categoria === 'restaurante') return true;
+  const m = macrosItem(a, uso, S.metas);
+  const topeGrasa = meta.gMax ?? meta.g;
+  const muchasKcal = m.kcal > meta.kcal * PARTE_KCAL_GRANDE;
+  const muchaGrasa = topeGrasa > 0 && m.g > topeGrasa * PARTE_GRASA_GRANDE;
+  if (!muchasKcal && !muchaGrasa) return true;
+  const cuanto = muchasKcal ? `${fmtKcal(m.kcal)} kcal, el ${Math.round((m.kcal / meta.kcal) * 100)} % de tu meta del día` : `${fmtG(m.g)} g de grasa, el ${Math.round((m.g / topeGrasa) * 100)} % del tope de grasa del día`;
+  return confirmar(`${textoCantidad(a, uso.cantidad, uso.unidad, uso.estado)} de ${a.nombre} son ${cuanto}.`, {
+    titulo: 'Revisa la cantidad',
+    detalle: '¿Está bien? Si no, toca "Corregir" y cambia el número.',
+    si: 'Sí, está bien',
+    no: 'Corregir',
+  });
 }
 
 /** Plato guardado: ½, 1 o 1½ porción. */

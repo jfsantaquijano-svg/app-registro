@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { proponerCierre, porciones, tablaFinal, planCierra, textoCantidad, rolDe, nombreEstado } from '../../src/cierre.js';
+import { proponerCierre, porciones, tablaFinal, planCierra, textoCantidad, rolDe, nombreEstado, plural } from '../../src/cierre.js';
 import { validarCopia, normalizarCopia, combinarPorId, actualizarPlan, construirCopia, leerTextoCopia, revisarCopia } from '../../src/copia.js';
 
 const arranque = JSON.parse(readFileSync(new URL('../arranque-prueba.json', import.meta.url), 'utf8'));
@@ -224,4 +224,18 @@ test('revisar un archivo de arranque: dice qué corregir, con el id, sin inventa
   b.platos[0].items.push({ alimentoId: 'creado-en-la-app', cantidad: 1, unidad: 'und', estado: null });
   assert.equal(revisarCopia(b).length, 1);
   assert.deepEqual(revisarCopia(b, ['creado-en-la-app']), []);
+});
+
+test('plural de las unidades: cada palabra hasta la primera preposición', () => {
+  assert.equal(plural('cucharadita medidora'), 'cucharaditas medidoras');
+  assert.equal(plural('porción'), 'porciones');
+  assert.equal(plural('vaso de 200 ml'), 'vasos de 200 ml');
+  assert.equal(plural('banano mediano pelado'), 'bananos medianos pelados');
+  assert.equal(plural('unidad'), 'unidades');
+  assert.equal(plural('nuez'), 'nueces');
+  assert.equal(plural('scoop'), 'scoops');
+  assert.equal(plural('und'), 'und');
+  const aceite = { base: '100g', unidadNombre: 'cucharadita medidora', gramosUnidad: 4.5 };
+  assert.equal(textoCantidad(aceite, 22.2, 'und'), '22.2 cucharaditas medidoras');
+  assert.equal(textoCantidad(aceite, 1, 'und'), '1 cucharadita medidora');
 });

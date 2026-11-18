@@ -87,6 +87,17 @@ export function unidadPorDefecto(alimento) {
   return alimento.base === 'unidad' ? 'und' : 'g';
 }
 
+/**
+ * Cantidad que se propone al agregar: la última que anotó en esa unidad; si no, 1 unidad o 100 g.
+ * A las grasas sin unidad no se les propone nada: 100 g de aceite o de nueces serían un error grande.
+ */
+export function cantidadPropuesta(a, unidad, ultimo = null) {
+  if (ultimo && ultimo.unidad === unidad && ultimo.cantidad > 0) return ultimo.cantidad;
+  if (unidad === 'und') return 1;
+  if (a.grasaVisible || a.categoria === 'grasa') return null;
+  return 100;
+}
+
 /** Multiplicador de los valores base del alimento para la cantidad escrita. */
 export function factorAlimento(alimento, cantidad, unidad, estado) {
   const q = Number(cantidad) || 0;
@@ -294,9 +305,12 @@ export function falta(tot, meta) {
  * Qué decir debajo de las barras. Con el día cerrado y todo dentro de la tolerancia no se pide
  * nada más: decir "te falta" haría pensar que todavía tiene que comer algo.
  * `faltan`: las partes ya escritas ("12 g P"…). `estados`: el de cada barra.
+ * `kcalSobre`: calorías por encima de la meta cuando ya pasaron la tolerancia. Entonces no se pide
+ * comer más, aunque falte algún macro: cualquier cosa que agregue sube el exceso.
  */
-export function textoFalta({ cerrado = false, estados = [], faltan = [] } = {}) {
+export function textoFalta({ cerrado = false, estados = [], faltan = [], kcalSobre = null } = {}) {
   if (cerrado && estados.every((x) => x === 'ok')) return 'Día cerrado: quedaste dentro de la meta.';
+  if (kcalSobre != null && kcalSobre > 0) return `Ya pasaste las calorías del día por ${fmtKcal(kcalSobre)} kcal.`;
   if (!faltan.length) return 'Llegaste a la meta.';
   return null; // null = mostrar "Te falta: …" con las partes
 }

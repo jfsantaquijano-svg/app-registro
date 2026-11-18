@@ -29,6 +29,7 @@ import {
   semanasPasos,
   estadoPasos,
   tipoEfectivo,
+  cantidadPropuesta,
 } from '../../src/calculos.js';
 import { lunesDe, sumarDias, difDias } from '../../src/fechas.js';
 
@@ -379,4 +380,25 @@ test('tipo de día sin elegir: entreno o descanso; si el plan no los tiene, el p
   assert.equal(tipoEfectivo(null, true, unSolo), 'normal');
   // Sin metas, como antes
   assert.equal(tipoEfectivo(null, false), 'descanso');
+});
+
+test('cantidad propuesta al agregar: lo último que anotó; si no, 1 unidad; a una grasa sin unidad, nada', () => {
+  const aceite = { base: '100g', unidadNombre: 'cucharadita', gramosUnidad: 4.5, categoria: 'grasa', grasaVisible: true };
+  const nueces = { base: '100g', categoria: 'grasa', grasaVisible: true };
+  const arroz = { base: '100g', categoria: 'carbo' };
+  assert.equal(cantidadPropuesta(aceite, 'und'), 1);
+  assert.equal(cantidadPropuesta(aceite, 'g'), null);
+  assert.equal(cantidadPropuesta(nueces, 'g'), null);
+  assert.equal(cantidadPropuesta(arroz, 'g'), 100);
+  assert.equal(cantidadPropuesta(arroz, 'g', { cantidad: 180, unidad: 'g' }), 180);
+  assert.equal(cantidadPropuesta(aceite, 'und', { cantidad: 2, unidad: 'und' }), 2);
+  // Lo último en otra unidad no se usa como si fuera de esta
+  assert.equal(cantidadPropuesta(aceite, 'und', { cantidad: 9, unidad: 'g' }), 1);
+});
+
+test('con las calorías pasadas no se pide comer más, aunque falte un macro', () => {
+  assert.equal(textoFalta({ estados: ['mal', 'cerca', 'mal', 'falta'], faltan: ['20.1 C'], kcalSobre: 882 }), 'Ya pasaste las calorías del día por 882 kcal.');
+  assert.equal(textoFalta({ estados: ['cerca', 'ok', 'ok', 'falta'], faltan: ['20.1 C'], kcalSobre: 34 }), 'Ya pasaste las calorías del día por 34 kcal.');
+  // Sin pasar las calorías, sigue diciendo lo que falta
+  assert.equal(textoFalta({ estados: ['falta', 'ok', 'ok', 'falta'], faltan: ['6 kcal', '20.1 C'], kcalSobre: null }), null);
 });
