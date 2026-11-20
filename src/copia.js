@@ -194,8 +194,10 @@ export function combinarPorId(actuales, nuevos, conservar = ['favorito', 'enCasa
 
 /** "Actualizar plan": reemplaza rutina, metas y ajustes; combina alimentos y platos. Nunca toca registros. */
 export function actualizarPlan(actual, copia) {
-  const nuevosAjustes = { ...(copia.ajustes || {}) };
   const viejos = actual.ajustes || {};
+  // Un archivo que no trae ajustes (por ejemplo, solo alimentos nuevos) no toca los de la app.
+  const traeAjustes = !!copia.ajustes && typeof copia.ajustes === 'object' && Object.keys(copia.ajustes).length > 0;
+  const nuevosAjustes = { ...(traeAjustes ? copia.ajustes : {}) };
   if (viejos.cita?.hecha && nuevosAjustes.cita && nuevosAjustes.cita.texto === viejos.cita.texto) {
     nuevosAjustes.cita = { ...nuevosAjustes.cita, hecha: true };
   }
@@ -210,7 +212,7 @@ export function actualizarPlan(actual, copia) {
   return {
     rutina: copia.rutina ?? actual.rutina,
     metas: copia.metas ?? actual.metas,
-    ajustes: Object.keys(nuevosAjustes).length ? nuevosAjustes : viejos,
+    ajustes: traeAjustes ? nuevosAjustes : viejos,
     alimentos: combinarPorId(actual.alimentos, copia.alimentos),
     platos: combinarPorId(actual.platos, copia.platos, []),
   };

@@ -239,3 +239,13 @@ test('plural de las unidades: cada palabra hasta la primera preposición', () =>
   assert.equal(textoCantidad(aceite, 22.2, 'und'), '22.2 cucharaditas medidoras');
   assert.equal(textoCantidad(aceite, 1, 'und'), '1 cucharadita medidora');
 });
+
+test('actualizar plan con un archivo que solo trae alimentos: no toca rutina, metas ni ajustes', () => {
+  const actual = normalizarCopia(structuredClone(arranque));
+  const r = actualizarPlan(actual, { formato: 'app-registro', version: 1, tipo: 'arranque', alimentos: [{ id: 'nuevo-x', nombre: 'Nuevo', base: '100g', kcal: 100, p: 1, g: 1, c: 1, origen: 'plan' }] });
+  assert.deepEqual(r.ajustes, actual.ajustes);
+  assert.deepEqual(r.metas, actual.metas);
+  assert.deepEqual(r.rutina, actual.rutina);
+  assert.ok(r.alimentos.some((a) => a.id === 'nuevo-x'));
+  assert.equal(r.alimentos.length, actual.alimentos.length + 1);
+});
