@@ -412,6 +412,8 @@ test('agregar una grasa: propone 1 unidad, cambiar de unidad no convierte lo pro
 
   // Con las calorías pasadas, debajo de las barras no dice "Te falta"
   assert.match(await page.getByTestId('te-falta').innerText(), /^Ya pasaste las calorías del día por [\d.]+ kcal\.$/);
+  // Con las calorías pasadas tampoco se ofrece "¿Qué como para completar?"
+  assert.equal(await page.getByTestId('que-como').count(), 0);
   await captura(page, '08-calorias-pasadas');
   // Y en "Cerrar el día" tampoco: dice cuánto se pasó y no propone nada más
   await page.getByTestId('cerrar-dia').click();
@@ -419,6 +421,53 @@ test('agregar una grasa: propone 1 unidad, cambiar de unidad no convierte lo pro
   assert.match(await page.getByTestId('cierre-falta').innerText(), /^Te pasaste: [\d.]+ kcal\.$/);
   await page.getByTestId('hoja-cerrar').getByText('Ya no queda espacio: no hace falta agregar nada.').waitFor();
   await page.locator('.hoja').last().getByRole('button', { name: 'Cerrar', exact: true }).click();
+  assert.deepEqual(errores, []);
+  await contexto.close();
+});
+
+test('¿Qué como para completar?: propone con lo que hay a mano, se apaga lo que no hay, se agrega otro y queda planeado sin cerrar el día', async () => {
+  const { page, contexto, errores } = await nuevaPagina(nav, srv.url);
+  await importarArranque(page);
+  await page.getByTestId('tipo-hoy-descanso').click();
+  await page.getByTestId('que-como').click();
+  await page.getByTestId('hoja-completar').waitFor();
+  // Lo que está "en casa" sale prendido; lo de la propuesta sale de ahí
+  assert.equal(await page.getByTestId('tengo-muslo-pavo').getAttribute('aria-pressed'), 'true');
+  const nombres = await page.getByTestId('propuesta').locator('.item-tit').allInnerTexts();
+  assert.ok(nombres.length > 0);
+  // "Ahora no tengo" lo primero que propuso: la propuesta deja de usarlo
+  const chip = page.getByTestId('tengo-ahora').getByRole('button', { name: nombres[0], exact: true });
+  const idApagado = (await chip.getAttribute('data-testid')).replace(/^tengo-/, '');
+  await chip.click();
+  await page.getByTestId('tengo-ahora').getByRole('button', { name: nombres[0], exact: true, pressed: false }).waitFor();
+  await page.waitForFunction((n) => ![...document.querySelectorAll('[data-testid="propuesta"] .item-tit')].some((x) => x.textContent === n), nombres[0]);
+  // Algo que sí tiene y no estaba marcado en casa
+  await page.getByTestId('tengo-buscar').fill('sardina');
+  await page.getByTestId('tengo-agregar-sardina').click();
+  await page.getByTestId('tengo-sardina').waitFor();
+  assert.equal(await page.getByTestId('tengo-sardina').getAttribute('aria-pressed'), 'true');
+  await captura(page, '09-que-como');
+  // Queda planeado en el momento de la hora (las 8: desayuno) y el día no se cierra
+  // Lo apagado y lo agregado ya quedaron guardados antes de anotar
+  await page.waitForFunction(async () => {
+    const db = await new Promise((r) => {
+      const q = indexedDB.open('app-registro');
+      q.onsuccess = () => {
+        const t = q.result.transaction('datos').objectStore('datos').get('ui');
+        t.onsuccess = () => r(t.result);
+      };
+    });
+    return (db?.noHay?.['2030-01-09'] || []).length === 1;
+  });
+  await page.getByTestId('planear-propuesta').click();
+  await esperarAviso(page, 'Anotado como planeado');
+  await page.getByTestId('hoy-confirmar-desayuno').waitFor();
+  const db = await leerDB(page);
+  const dia = db['reg.dias']['2030-01-09'];
+  assert.ok(dia.comidas.length > 0 && dia.comidas.every((c) => c.planeado && c.momento === 'desayuno'));
+  assert.ok(!dia.resumen?.cerrado);
+  assert.equal(db.alimentos.find((a) => a.id === 'sardina').enCasa, true);
+  assert.deepEqual(db.ui.noHay['2030-01-09'], [idApagado]);
   assert.deepEqual(errores, []);
   await contexto.close();
 });

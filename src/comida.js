@@ -388,6 +388,7 @@ export function bloqueBarras(fecha, { compacto = false } = {}) {
   if (f.g && !meta.soloKcalYProteina) partes.push(`${fmtG(f.g)} G`);
   if (f.c && !meta.soloKcalYProteina) partes.push(`${fmtG(f.c)} C`);
   const gr = grasas(t.conf, t.plan, meta);
+  const kcalSobre = estados[0] === 'cerca' || estados[0] === 'mal' ? t.conf.kcal - meta.kcal : null;
   return seccion(
     null,
     h(
@@ -401,8 +402,12 @@ export function bloqueBarras(fecha, { compacto = false } = {}) {
     h(
       'div',
       { class: 'te-falta', testid: 'te-falta' },
-      textoFalta({ cerrado, estados, faltan: partes, kcalSobre: estados[0] === 'cerca' || estados[0] === 'mal' ? t.conf.kcal - meta.kcal : null }) ?? h('span', {}, 'Te falta: ', h('b', {}, partes.join(' · '))),
+      textoFalta({ cerrado, estados, faltan: partes, kcalSobre }) ?? h('span', {}, 'Te falta: ', h('b', {}, partes.join(' · '))),
     ),
+    // Lo mismo que preguntarle a Claude "¿con qué completo?": la propuesta con lo que tiene a mano.
+    !compacto && fecha === hoy() && !getDia(fecha)?.resumen?.cerrado && kcalSobre == null && partes.length
+      ? h('button', { class: 'btn btn-sec btn-ancho mb', type: 'button', testid: 'que-como', onclick: () => abrirCerrarDia(fecha, { modo: 'completar' }) }, '🤔 ¿Qué como para completar?')
+      : null,
     !compacto && !meta.soloKcalYProteina
       ? h(
           'div',
@@ -1089,13 +1094,100 @@ export function abrirEscaner(alEncontrar) {
 
 // ---------- Cerrar el día ----------
 
-export function abrirCerrarDia(fecha) {
+/**
+ * Cerrar el día, o (modo 'completar') solo preguntar qué comer para completar las metas:
+ * la propuesta usa lo que hay en casa, menos lo que la persona dice que ahora no tiene.
+ * Para completar se cuenta también lo ya planeado, y la propuesta queda como planeada (sin cerrar el día).
+ */
+export function abrirCerrarDia(fecha, { modo = 'cerrar' } = {}) {
+  const completar = modo === 'completar';
   const meta = metaDelDia(fecha);
   if (!meta) return aviso('Faltan las metas.');
-  const hj = hoja({ titulo: 'Cerrar el día', clase: 'alta', testid: 'hoja-cerrar' });
+  const hj = hoja({ titulo: completar ? '¿Qué como para completar?' : 'Cerrar el día', clase: 'alta', testid: completar ? 'hoja-completar' : 'hoja-cerrar' });
   const excluir = [...(S.ui.noHay?.[fecha] || [])];
+  const arriba = h('div');
   const cont = h('div');
-  const momentoProp = 'cena';
+  const momentoProp = completar ? momentoPorHora() : 'cena';
+
+  // ---- Lo que tiene ahora: lo de "en casa", y se apaga lo que hoy no hay ----
+  const chipsTengo = h('div', { class: 'chips', testid: 'tengo-ahora' });
+  const resultados = h('div', { class: 'chips mt' });
+  const buscarOtro = inputTexto({ placeholder: 'Agregar otro que tengas (ej. galletas)', etiqueta: 'Agregar otro que tengas', testid: 'tengo-buscar' });
+  async function guardarNoHay() {
+    S.ui.noHay = { [fecha]: excluir.filter((id) => S.alimentos.some((a) => a.id === id)) };
+    await guardar('ui');
+  }
+  function pintarTengo() {
+    const enCasa = S.alimentos.filter((a) => a.enCasa && !a.libre);
+    montar(
+      chipsTengo,
+      enCasa.length
+        ? enCasa.map((a) => {
+            const hay = !excluir.includes(a.id);
+            return h(
+              'button',
+              {
+                class: `chip ${hay ? 'sel' : ''}`,
+                type: 'button',
+                'aria-pressed': hay ? 'true' : 'false',
+                testid: `tengo-${a.id}`,
+                onclick: async () => {
+                  const i = excluir.indexOf(a.id);
+                  if (i >= 0) excluir.splice(i, 1);
+                  else excluir.push(a.id);
+                  // Primero se ve el cambio; después se guarda
+                  pintarTengo();
+                  pintar();
+                  await guardarNoHay();
+                },
+              },
+              a.nombre,
+            );
+          })
+        : h('p', { class: 'suave chico' }, 'No tienes nada marcado en casa: agrégalo abajo.'),
+    );
+  }
+  buscarOtro.addEventListener('input', () => {
+    const q = buscarOtro.value.trim();
+    const otros = S.alimentos.filter((a) => !a.enCasa && !a.libre && !a.restaurante && a.categoria !== 'restaurante');
+    montar(
+      resultados,
+      q
+        ? buscarAlimentos(otros, q, { limite: 6 }).map((a) =>
+            h(
+              'button',
+              {
+                class: 'chip',
+                type: 'button',
+                testid: `tengo-agregar-${a.id}`,
+                onclick: async () => {
+                  a.enCasa = true;
+                  const i = excluir.indexOf(a.id);
+                  if (i >= 0) excluir.splice(i, 1);
+                  invalidarIndice();
+                  buscarOtro.value = '';
+                  montar(resultados);
+                  pintarTengo();
+                  pintar();
+                  await guardar('alimentos');
+                  await guardarNoHay();
+                },
+              },
+              `+ ${a.nombre}`,
+            ),
+          )
+        : null,
+    );
+  });
+  const tengo = h(
+    'details',
+    { class: 'tarjeta mt', testid: 'tengo', open: completar || null },
+    h('summary', { class: 'etq-linea' }, '¿Qué tienes ahora? Toca lo que no tengas'),
+    chipsTengo,
+    h('div', { class: 'mt' }, buscarOtro),
+    resultados,
+    h('p', { class: 'suave chico' }, 'Lo que apagues vale solo para hoy. Lo que agregues queda marcado "en casa".'),
+  );
 
   function lineaMacros(t, soloKP) {
     return soloKP ? `${fmtKcal(t.kcal)} kcal · ${fmtG(t.p)} P` : `${fmtKcal(t.kcal)} kcal · ${fmtG(t.p)} P · ${fmtG(t.g)} G · ${fmtG(t.c)} C`;
@@ -1105,23 +1197,29 @@ export function abrirCerrarDia(fecha) {
     const t = totalesDelDia(fecha);
     const cons = t.conf;
     const soloKP = !!meta.soloKcalYProteina;
-    const f = falta(cons, meta);
-    const kcalPasadas = meta.kcal != null && cons.kcal > meta.kcal + toleranciaKcal(S.metas);
-    const reglaOro = S.metas?.reglaDeOroP ?? meta.p;
     const conPlan = sumar([cons, t.plan]);
-    const planOk = t.nPlan > 0 && planCierra(conPlan, meta, S.metas);
-    const prop = proponerCierre({ meta, metas: S.metas, consumido: cons, alimentos: S.alimentos, frecuencia: frecuenciaAlimentos(), excluir, prefs: S.ajustes?.cierre || {} });
+    // Para completar cuenta también lo planeado: la propuesta llena solo lo que falta después de eso.
+    const baseProp = completar ? conPlan : cons;
+    const f = falta(baseProp, meta);
+    const kcalPasadas = meta.kcal != null && baseProp.kcal > meta.kcal + toleranciaKcal(S.metas);
+    const reglaOro = S.metas?.reglaDeOroP ?? meta.p;
+    const planOk = !completar && t.nPlan > 0 && planCierra(conPlan, meta, S.metas);
+    const prop = proponerCierre({ meta, metas: S.metas, consumido: baseProp, alimentos: S.alimentos, frecuencia: frecuenciaAlimentos(), excluir, prefs: S.ajustes?.cierre || {} });
     const finalTabla = planOk ? conPlan : prop.final;
     const filas = tablaFinal(finalTabla, meta, S.metas);
     montar(
-      cont,
+      arriba,
       h('p', {}, h('b', {}, 'Llevas: '), lineaMacros(cons, soloKP)),
+      completar && t.nPlan ? h('p', {}, h('b', {}, 'Con lo planeado: '), lineaMacros(conPlan, soloKP)) : null,
       h('p', {}, h('b', {}, `Meta (${meta.nombre || ''}): `), lineaMacros({ kcal: meta.kcal, p: meta.p ?? meta.pMin, g: meta.g, c: meta.c }, soloKP)),
       // Con las calorías ya pasadas no se dice "te falta": cualquier cosa que agregue sube el exceso.
       kcalPasadas
-        ? h('p', { testid: 'cierre-falta' }, h('b', {}, 'Te pasaste: '), `${fmtKcal(cons.kcal - meta.kcal)} kcal.`)
+        ? h('p', { testid: 'cierre-falta' }, h('b', {}, 'Te pasaste: '), `${fmtKcal(baseProp.kcal - meta.kcal)} kcal.`)
         : h('p', { testid: 'cierre-falta' }, h('b', {}, 'Te falta: '), lineaMacros({ kcal: f.kcal, p: f.p, g: f.g ?? 0, c: f.c ?? 0 }, soloKP)),
-      h('p', { class: 'aviso', testid: 'regla-oro' }, cons.p >= reglaOro ? `Regla de oro: ya llegaste a ${reglaOro} g de proteína. Solo grasa o carbos.` : `Regla de oro: te faltan ${fmtG(reglaOro - cons.p)} g de proteína para ${reglaOro}. La propuesta empieza por ahí.`),
+      h('p', { class: 'aviso', testid: 'regla-oro' }, baseProp.p >= reglaOro ? `Regla de oro: ya llegaste a ${reglaOro} g de proteína. Solo grasa o carbos.` : `Regla de oro: te faltan ${fmtG(reglaOro - baseProp.p)} g de proteína para ${reglaOro}. La propuesta empieza por ahí.`),
+    );
+    montar(
+      cont,
       planOk
         ? h(
             'div',
@@ -1172,6 +1270,7 @@ export function abrirCerrarDia(fecha) {
                         type: 'button',
                         onclick: () => {
                           excluir.push(it.alimento.id);
+                          pintarTengo();
                           pintar();
                         },
                       },
@@ -1186,6 +1285,7 @@ export function abrirCerrarDia(fecha) {
                           excluir.push(it.alimento.id);
                           S.ui.noHay = { [fecha]: [...new Set([...(S.ui.noHay?.[fecha] || []), it.alimento.id])] };
                           await guardar('ui');
+                          pintarTengo();
                           pintar();
                         },
                       },
@@ -1195,8 +1295,8 @@ export function abrirCerrarDia(fecha) {
                 ),
               ),
             )
-          : vacio(cons.kcal >= meta.kcal ? 'Ya no queda espacio: no hace falta agregar nada.' : 'No encontré una combinación con lo que hay en casa.'),
-      t.nPlan && !planOk && prop.items.length ? h('p', { class: 'suave chico' }, 'Lo planeado que no confirmaste se quita al usar la propuesta.') : null,
+          : vacio(baseProp.kcal >= meta.kcal ? 'Ya no queda espacio: no hace falta agregar nada.' : 'No encontré una combinación con lo que tienes. Agrega arriba otra cosa que tengas.'),
+      !completar && t.nPlan && !planOk && prop.items.length ? h('p', { class: 'suave chico' }, 'Lo planeado que no confirmaste se quita al usar la propuesta.') : null,
       h('h3', { class: 'tarjeta-tit mt' }, 'Así quedaría el día'),
       h(
         'table',
@@ -1209,7 +1309,30 @@ export function abrirCerrarDia(fecha) {
         ),
       ),
       meta.c != null && finalTabla.c < meta.c && !soloKP ? h('p', { class: 'suave chico' }, `Los ${fmtG(meta.c - finalTabla.c)} g de carbos que faltan son lo que se sacrifica.`) : null,
-      h(
+      completar
+        ? h(
+            'div',
+            { class: 'fila-btns fila-fija' },
+            prop.items.length
+              ? h(
+                  'button',
+                  {
+                    class: 'btn btn-primario',
+                    type: 'button',
+                    testid: 'planear-propuesta',
+                    onclick: async () => {
+                      const d = getDia(fecha, true);
+                      for (const it of prop.items) d.comidas.push(comidaDesdeAlimento(it.alimento, it, momentoProp, true));
+                      hj.cerrar();
+                      await guardarDia(fecha);
+                      aviso('Anotado como planeado: cuando lo comas, tócalo en Hoy para confirmarlo.', 4000);
+                    },
+                  },
+                  `Anotarlo como planeado (${NOMBRE_MOMENTO[momentoProp].toLowerCase()})`,
+                )
+              : null,
+          )
+        : h(
         'div',
         { class: 'fila-btns fila-fija' },
         h(
@@ -1246,7 +1369,8 @@ export function abrirCerrarDia(fecha) {
       ),
     );
   }
-  montar(hj.cuerpo, cont);
+  montar(hj.cuerpo, arriba, tengo, cont);
+  pintarTengo();
   pintar();
 }
 
