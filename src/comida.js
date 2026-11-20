@@ -1107,6 +1107,7 @@ export function abrirCerrarDia(fecha, { modo = 'cerrar' } = {}) {
   const excluir = [...(S.ui.noHay?.[fecha] || [])];
   const arriba = h('div');
   const cont = h('div');
+  const contFinal = h('div');
   const momentoProp = completar ? momentoPorHora() : 'cena';
 
   // ---- Lo que tiene ahora: lo de "en casa", y se apaga lo que hoy no hay ----
@@ -1182,7 +1183,7 @@ export function abrirCerrarDia(fecha, { modo = 'cerrar' } = {}) {
   const tengo = h(
     'details',
     { class: 'tarjeta mt', testid: 'tengo', open: completar || null },
-    h('summary', { class: 'etq-linea' }, '¿Qué tienes ahora? Toca lo que no tengas'),
+    h('summary', { class: 'etq-linea' }, completar ? '¿Qué tienes ahora? Apaga lo que no tengas' : '¿No tienes algo de esto, o tienes otra cosa? Toca aquí'),
     chipsTengo,
     h('div', { class: 'mt' }, buscarOtro),
     resultados,
@@ -1295,8 +1296,11 @@ export function abrirCerrarDia(fecha, { modo = 'cerrar' } = {}) {
                 ),
               ),
             )
-          : vacio(baseProp.kcal >= meta.kcal ? 'Ya no queda espacio: no hace falta agregar nada.' : 'No encontré una combinación con lo que tienes. Agrega arriba otra cosa que tengas.'),
+          : vacio(baseProp.kcal >= meta.kcal ? 'Ya no queda espacio: no hace falta agregar nada.' : 'No encontré una combinación con lo que tienes. Abajo puedes agregar otra cosa que tengas.'),
       !completar && t.nPlan && !planOk && prop.items.length ? h('p', { class: 'suave chico' }, 'Lo planeado que no confirmaste se quita al usar la propuesta.') : null,
+    );
+    montar(
+      contFinal,
       h('h3', { class: 'tarjeta-tit mt' }, 'Así quedaría el día'),
       h(
         'table',
@@ -1346,7 +1350,7 @@ export function abrirCerrarDia(fecha, { modo = 'cerrar' } = {}) {
               hj.cerrar();
             },
           },
-          'Cerrar sin agregar',
+          'Ya terminé: cerrar sin agregar',
         ),
         prop.items.length
           ? h(
@@ -1363,13 +1367,13 @@ export function abrirCerrarDia(fecha, { modo = 'cerrar' } = {}) {
                   hj.cerrar();
                 },
               },
-              'Usar la propuesta',
+              'Me lo como: anotarlo y cerrar',
             )
           : null,
       ),
     );
   }
-  montar(hj.cuerpo, arriba, tengo, cont);
+  montar(hj.cuerpo, arriba, cont, tengo, contFinal);
   pintarTengo();
   pintar();
 }
